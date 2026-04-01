@@ -101,6 +101,14 @@ public partial class MainWindow : Window
         Width = SystemParameters.VirtualScreenWidth;
         Height = SystemParameters.VirtualScreenHeight;
 
+        // 작업표시줄 아이콘 설정 (WPF Resource에서 로드)
+        try
+        {
+            Icon = System.Windows.Media.Imaging.BitmapFrame.Create(
+                new Uri("pack://application:,,,/app.ico", UriKind.Absolute));
+        }
+        catch { /* 아이콘 로드 실패해도 앱은 정상 동작 */ }
+
         // 핵심 상태
         _appState = new AppState();
         _toolManager = new ToolManager(_appState);

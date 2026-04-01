@@ -5,7 +5,7 @@
         WindowStyle="None"
         Background="Transparent"
         Topmost="True"
-        ShowInTaskbar="False"
+        ShowInTaskbar="True"
         ResizeMode="NoResize">
     <Grid>
         <!-- 하위 레이어: 완성된 스트로크, 레이저 trail, 인디케이터 등 -->

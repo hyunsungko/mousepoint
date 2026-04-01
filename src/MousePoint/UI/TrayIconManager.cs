@@ -48,11 +48,21 @@ public sealed class TrayIconManager : IDisposable
         contextMenu.Items.Add(separatorItem);
         contextMenu.Items.Add(exitItem);
 
-        // NotifyIcon 생성 (기본 시스템 아이콘 사용)
+        // NotifyIcon 생성 (임베디드 리소스에서 앱 아이콘 로드)
+        Icon trayIcon = SystemIcons.Application;
+        try
+        {
+            using var stream = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("MousePoint.app.ico");
+            if (stream != null)
+                trayIcon = new Icon(stream);
+        }
+        catch { /* 로드 실패 시 기본 아이콘 사용 */ }
+
         _notifyIcon = new NotifyIcon
         {
             Text = "MousePoint",
-            Icon = SystemIcons.Application,
+            Icon = trayIcon,
             ContextMenuStrip = contextMenu,
             Visible = true
         };

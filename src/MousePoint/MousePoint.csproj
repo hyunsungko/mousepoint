@@ -23,4 +23,10 @@
     <Using Remove="System.Windows.Forms" />
   </ItemGroup>
 
+  <!-- app.ico: WPF Resource (Window.Icon용) + EmbeddedResource (트레이 아이콘용) -->
+  <ItemGroup>
+    <Resource Include="app.ico" />
+    <EmbeddedResource Include="app.ico" LogicalName="MousePoint.app.ico" />
+  </ItemGroup>
+
 </Project>
