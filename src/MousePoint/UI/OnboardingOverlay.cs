@@ -66,10 +66,10 @@ public sealed class OnboardingOverlay
                 "아무 곳이나 클릭하거나 F9를 눌러 시작하세요",
             }),
             Foreground = Brushes.White,
-            FontSize = 17,
+            FontSize = 20,
             FontWeight = FontWeights.Medium,
             TextAlignment = TextAlignment.Center,
-            LineHeight = 26
+            LineHeight = 30
         };
 
         var enText = new TextBlock
@@ -80,8 +80,8 @@ public sealed class OnboardingOverlay
                 "F9 — Toggle overlay  |  Side Button 1 — Cycle tools  |  Side Button 2 — Cycle colors",
                 "Scroll Wheel — Adjust thickness  |  Ctrl+Shift+Q — Quit",
             }),
-            Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 180)),
-            FontSize = 13,
+            Foreground = Brushes.White,
+            FontSize = 15,
             TextAlignment = TextAlignment.Center,
             LineHeight = 20
         };
@@ -89,8 +89,8 @@ public sealed class OnboardingOverlay
         var escText = new TextBlock
         {
             Text = "\nESC — 종료 / Quit",
-            Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 120)),
-            FontSize = 12,
+            Foreground = new SolidColorBrush(Color.FromRgb(200, 200, 200)),
+            FontSize = 14,
             TextAlignment = TextAlignment.Center,
             Margin = new Thickness(0, 10, 0, 0)
         };
@@ -98,8 +98,8 @@ public sealed class OnboardingOverlay
         var creditText = new TextBlock
         {
             Text = "Made by DRT.Hs  |  github.com/hyunsungko/mousepoint",
-            Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
-            FontSize = 11,
+            Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 180)),
+            FontSize = 13,
             TextAlignment = TextAlignment.Center,
             Margin = new Thickness(0, 20, 0, 0)
         };
@@ -111,14 +111,17 @@ public sealed class OnboardingOverlay
             Children = { koText, enText, escText, creditText }
         };
 
-        // Canvas 전체를 덮고 중앙 정렬 (멀티모니터 대응)
-        double canvasW = canvas.ActualWidth > 0 ? canvas.ActualWidth : SystemParameters.VirtualScreenWidth;
-        double canvasH = canvas.ActualHeight > 0 ? canvas.ActualHeight : SystemParameters.VirtualScreenHeight;
+        // 주 모니터 크기 기준 중앙 배치 (멀티모니터 대응)
+        // VirtualScreen 좌표에서 주 모니터(0,0)의 위치를 계산
+        double primaryW = SystemParameters.PrimaryScreenWidth;
+        double primaryH = SystemParameters.PrimaryScreenHeight;
+        double offsetX = -SystemParameters.VirtualScreenLeft;  // 주 모니터가 Canvas 내에서의 X 오프셋
+        double offsetY = -SystemParameters.VirtualScreenTop;   // 주 모니터가 Canvas 내에서의 Y 오프셋
 
         var grid = new Grid
         {
-            Width = canvasW,
-            Height = canvasH,
+            Width = primaryW,
+            Height = primaryH,
             Children = { stack }
         };
 
@@ -127,12 +130,12 @@ public sealed class OnboardingOverlay
             Background = new SolidColorBrush(Colors.Black) { Opacity = 0.7 },
             Child = grid,
             IsHitTestVisible = false,
-            Width = canvasW,
-            Height = canvasH
+            Width = primaryW,
+            Height = primaryH
         };
 
-        Canvas.SetLeft(_overlayElement, 0);
-        Canvas.SetTop(_overlayElement, 0);
+        Canvas.SetLeft(_overlayElement, offsetX);
+        Canvas.SetTop(_overlayElement, offsetY);
         canvas.Children.Add(_overlayElement);
     }
 
