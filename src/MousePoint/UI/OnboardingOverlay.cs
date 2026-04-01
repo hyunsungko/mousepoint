@@ -95,11 +95,20 @@ public sealed class OnboardingOverlay
             Margin = new Thickness(0, 10, 0, 0)
         };
 
+        var creditText = new TextBlock
+        {
+            Text = "Made by DRT.Hs  |  github.com/hyunsungko/mousepoint",
+            Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+            FontSize = 11,
+            TextAlignment = TextAlignment.Center,
+            Margin = new Thickness(0, 20, 0, 0)
+        };
+
         var stack = new StackPanel
         {
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,
-            Children = { koText, enText, escText }
+            Children = { koText, enText, escText, creditText }
         };
 
         // Canvas 전체를 덮고 중앙 정렬 (멀티모니터 대응)

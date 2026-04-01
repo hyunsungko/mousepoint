@@ -144,6 +144,7 @@ public partial class MainWindow : Window
         _trayIconManager = new TrayIconManager(
             onLaserSelected: () => _appState.SetMode(ToolMode.Laser),
             onHighlighterSelected: () => _appState.SetMode(ToolMode.Highlighter),
+            onRectangleSelected: () => _appState.SetMode(ToolMode.Rectangle),
             onExitClicked: () =>
             {
                 // WinForms 스레드에서 호출될 수 있으므로 WPF Dispatcher로 마샬링
