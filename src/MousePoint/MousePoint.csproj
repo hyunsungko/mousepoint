@@ -7,7 +7,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <ApplicationIcon />
+    <ApplicationIcon>app.ico</ApplicationIcon>
     <AssemblyName>MousePoint</AssemblyName>
     <RootNamespace>MousePoint</RootNamespace>
     <PublishSingleFile>true</PublishSingleFile>
