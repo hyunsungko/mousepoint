@@ -1,57 +1,50 @@
 using System.Windows.Controls;
-using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace MousePoint.Rendering;
 
 /// <summary>
-/// CompositionTarget.Rendering에 연결되어 매 프레임 fade-out을 처리하는 관리자.
-/// 등록된 AnnotationElement의 lifetime이 경과하면 약 1초에 걸쳐 opacity를 0으로 감소시키고,
-/// 완전히 투명해지면 Canvas에서 제거한다.
+/// DispatcherTimer(30fps)로 fade-out을 처리하는 관리자.
+/// CompositionTarget.Rendering(60fps) 대신 사용하여 렌더링 부하 절감.
 /// </summary>
 public sealed class FadeOutManager : IDisposable
 {
-    /// <summary>fade-out에 소요되는 시간 (초).</summary>
     private const double FadeDurationSeconds = 1.0;
 
-    /// <summary>관리 대상 요소와 소속 Canvas를 묶는 내부 레코드.</summary>
     private readonly record struct Entry(AnnotationElement Element, Canvas Canvas);
 
     private readonly List<Entry> _entries = [];
-    private bool _running;
+    private readonly DispatcherTimer _timer;
     private bool _disposed;
 
-    /// <summary>
-    /// 주석 요소를 등록한다. Lifetime 경과 후 자동으로 fade-out된다.
-    /// </summary>
+    public FadeOutManager()
+    {
+        _timer = new DispatcherTimer(DispatcherPriority.Render)
+        {
+            Interval = TimeSpan.FromMilliseconds(33) // ~30fps
+        };
+        _timer.Tick += OnTick;
+    }
+
     public void Register(AnnotationElement element, Canvas canvas)
     {
         ArgumentNullException.ThrowIfNull(element);
         ArgumentNullException.ThrowIfNull(canvas);
 
         _entries.Add(new Entry(element, canvas));
+
+        if (!_timer.IsEnabled)
+            _timer.Start();
     }
 
-    /// <summary>CompositionTarget.Rendering 구독을 시작한다.</summary>
-    public void Start()
-    {
-        if (_running) return;
-        _running = true;
-        CompositionTarget.Rendering += OnRendering;
-    }
-
-    /// <summary>CompositionTarget.Rendering 구독을 해제한다.</summary>
-    public void Stop()
-    {
-        if (!_running) return;
-        _running = false;
-        CompositionTarget.Rendering -= OnRendering;
-    }
+    public void Start() { } // 호환성 유지 — timer는 Register 시 자동 시작
+    public void Stop() => _timer.Stop();
 
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
-        Stop();
+        _timer.Stop();
         _entries.Clear();
     }
 
@@ -59,33 +52,45 @@ public sealed class FadeOutManager : IDisposable
     /// 매 프레임 호출. 각 요소의 경과 시간에 따라 opacity를 갱신하고
     /// 만료된 요소를 Canvas에서 제거한다.
     /// </summary>
-    private void OnRendering(object? sender, EventArgs e)
+    private void OnTick(object? sender, EventArgs e)
     {
-        var now = DateTime.UtcNow;
+        if (_entries.Count == 0)
+        {
+            _timer.Stop();
+            return;
+        }
 
-        // 역순 순회하여 제거 시 인덱스 꼬임 방지
-        for (int i = _entries.Count - 1; i >= 0; i--)
+        var now = DateTime.UtcNow;
+        int i = 0;
+
+        while (i < _entries.Count)
         {
             var entry = _entries[i];
-            var elapsed = now - entry.Element.CreatedAt;
-            var lifetimeSeconds = entry.Element.Lifetime.TotalSeconds;
+            double elapsedSec = (now - entry.Element.CreatedAt).TotalSeconds;
+            double lifetimeSec = entry.Element.Lifetime.TotalSeconds;
 
-            if (elapsed.TotalSeconds <= lifetimeSeconds)
+            if (elapsedSec <= lifetimeSec)
             {
-                // 아직 lifetime 이내 — 완전 불투명 유지
+                i++;
                 continue;
             }
 
-            // fade-out 진행률 (0.0 → 1.0)
-            double fadeProgress = (elapsed.TotalSeconds - lifetimeSeconds) / FadeDurationSeconds;
-            double newOpacity = Math.Max(0.0, 1.0 - fadeProgress);
-            entry.Element.UpdateOpacity(newOpacity);
+            double fadeProgress = (elapsedSec - lifetimeSec) / FadeDurationSeconds;
+            double newOpacity = 1.0 - fadeProgress;
 
-            if (entry.Element.IsExpired())
+            if (newOpacity <= 0.0)
             {
-                // Canvas에서 시각 요소 제거 + 리스트에서 제거
+                // 만료: Canvas에서 제거 + swap-remove (O(1))
+                entry.Element.UpdateOpacity(0);
                 entry.Canvas.Children.Remove(entry.Element.Visual);
-                _entries.RemoveAt(i);
+                _entries[i] = _entries[^1];
+                _entries.RemoveAt(_entries.Count - 1);
+                // i 증가 안 함 — swap된 요소 처리 필요
+            }
+            else
+            {
+                entry.Element.UpdateOpacity(newOpacity);
+                i++;
             }
         }
     }

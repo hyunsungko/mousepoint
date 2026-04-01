@@ -26,6 +26,11 @@ internal sealed class GlobalMouseHook : IDisposable
 
     public bool IsHooked => _hookId != IntPtr.Zero;
 
+    // --- 마우스 이동 코얼레싱: 최신 좌표만 유지, 프레임당 1회만 dispatch ---
+    private volatile int _pendingX;
+    private volatile int _pendingY;
+    private volatile bool _hasPendingMove;
+
     public GlobalMouseHook(Dispatcher dispatcher)
     {
         _dispatcher = dispatcher;
@@ -105,7 +110,17 @@ internal sealed class GlobalMouseHook : IDisposable
                 switch (msg)
                 {
                     case NativeMethods.WM_MOUSEMOVE:
-                        _dispatcher.BeginInvoke(() => MouseMoved?.Invoke(x, y));
+                        _pendingX = x;
+                        _pendingY = y;
+                        if (!_hasPendingMove)
+                        {
+                            _hasPendingMove = true;
+                            _dispatcher.BeginInvoke(() =>
+                            {
+                                _hasPendingMove = false;
+                                MouseMoved?.Invoke(_pendingX, _pendingY);
+                            });
+                        }
                         break;
 
                     case NativeMethods.WM_LBUTTONDOWN:

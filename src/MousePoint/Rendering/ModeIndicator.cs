@@ -63,9 +63,27 @@ public sealed class ModeIndicator
             IsHitTestVisible = false
         };
 
-        // Canvas 위치 (스크린 좌표 → Canvas 상대 좌표)
-        double canvasX = screenX - SystemParameters.VirtualScreenLeft + OffsetX;
-        double canvasY = screenY - SystemParameters.VirtualScreenTop + OffsetY;
+        // 좌표는 이미 MainWindow에서 DPI 보정된 Canvas 좌표
+        // 인디케이터 크기를 측정하여 화면 경계 클램핑
+        border.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        double indicatorW = border.DesiredSize.Width;
+        double indicatorH = border.DesiredSize.Height;
+
+        double canvasW = canvas.ActualWidth > 0 ? canvas.ActualWidth : SystemParameters.VirtualScreenWidth;
+        double canvasH = canvas.ActualHeight > 0 ? canvas.ActualHeight : SystemParameters.VirtualScreenHeight;
+
+        // 기본: 커서 우측 하단. 넘치면 좌측/상단으로 뒤집기
+        double canvasX = screenX + OffsetX;
+        double canvasY = screenY + OffsetY;
+
+        if (canvasX + indicatorW > canvasW)
+            canvasX = screenX - OffsetX - indicatorW;
+        if (canvasY + indicatorH > canvasH)
+            canvasY = screenY - OffsetY - indicatorH;
+
+        // 최소 0 보장
+        canvasX = Math.Max(0, canvasX);
+        canvasY = Math.Max(0, canvasY);
 
         Canvas.SetLeft(border, canvasX);
         Canvas.SetTop(border, canvasY);

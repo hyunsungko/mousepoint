@@ -8,8 +8,15 @@
         Topmost="True"
         ShowInTaskbar="False"
         ResizeMode="NoResize">
-    <!-- 투명 오버레이 윈도우: VirtualScreen 전체를 덮는 Canvas -->
-    <Canvas x:Name="OverlayCanvas"
-            Background="Transparent"
-            IsHitTestVisible="False" />
+    <!-- 2-레이어 Canvas: 완성된 스트로크와 활성 스트로크를 분리하여 렌더링 성능 확보 -->
+    <Grid>
+        <!-- 하위 레이어: 완성된 스트로크, 레이저 trail, 인디케이터 등 -->
+        <Canvas x:Name="OverlayCanvas"
+                Background="Transparent"
+                IsHitTestVisible="False" />
+        <!-- 상위 레이어: 현재 드래그 중인 형광펜 스트로크만 (변경 빈번) -->
+        <Canvas x:Name="ActiveCanvas"
+                Background="Transparent"
+                IsHitTestVisible="False" />
+    </Grid>
 </Window>

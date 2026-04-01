@@ -109,7 +109,7 @@ public partial class MainWindow : Window
 
         // 렌더러
         _laserRenderer = new LaserRenderer(OverlayCanvas);
-        _highlighterRenderer = new HighlighterRenderer(OverlayCanvas, _fadeOutManager);
+        _highlighterRenderer = new HighlighterRenderer(OverlayCanvas, ActiveCanvas, _fadeOutManager);
 
         // 프리셋 변경 시 형광펜 색상/굵기 반영
         _toolManager.PresetChanged += OnPresetChanged;
@@ -146,6 +146,17 @@ public partial class MainWindow : Window
     /// true: 마우스 클릭이 아래 윈도우로 통과
     /// false: 이 윈도우가 마우스 입력을 받음 (형광펜 드래그용)
     /// </summary>
+    private static readonly System.Windows.Media.Brush TransparentBg =
+        System.Windows.Media.Brushes.Transparent;
+    private static readonly System.Windows.Media.Brush OpaqueHitTestBg =
+        new System.Windows.Media.SolidColorBrush(
+            System.Windows.Media.Color.FromArgb(1, 0, 0, 0)); // alpha 1/255 — 눈에 안 보이지만 hit test 통과
+
+    static MainWindow()
+    {
+        OpaqueHitTestBg.Freeze();
+    }
+
     private void SetClickThrough(bool transparent)
     {
         var hwndSource = PresentationSource.FromVisual(this) as HwndSource;
@@ -157,10 +168,14 @@ public partial class MainWindow : Window
         if (transparent)
         {
             exStyle |= NativeMethods.WS_EX_TRANSPARENT;
+            ActiveCanvas.Background = TransparentBg;
+            ActiveCanvas.IsHitTestVisible = false;
         }
         else
         {
             exStyle &= ~NativeMethods.WS_EX_TRANSPARENT;
+            ActiveCanvas.Background = OpaqueHitTestBg;
+            ActiveCanvas.IsHitTestVisible = true;
         }
 
         NativeMethods.SetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE, (IntPtr)exStyle);
