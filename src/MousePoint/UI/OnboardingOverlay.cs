@@ -23,11 +23,19 @@ public sealed class OnboardingOverlay
     private Canvas? _canvas;
     private Action? _onDismiss;
 
+    /// <summary>온보딩 오버레이가 현재 표시 중인지 여부.</summary>
+    public bool IsShowing => _overlayElement != null;
+
     /// <summary>
     /// 첫 실행이면 안내 오버레이를 표시한다. 이미 사용한 적 있으면 아무 것도 하지 않는다.
     /// </summary>
     /// <param name="canvas">오버레이를 표시할 Canvas.</param>
     /// <param name="onDismiss">오버레이가 닫힐 때 호출되는 콜백.</param>
+    /// <summary>
+    /// 첫 실행이면 안내 오버레이를 표시한다. 이미 사용한 적 있으면 아무 것도 하지 않는다.
+    /// 닫기는 WPF 이벤트 대신 외부에서 DismissIfShowing()을 호출해야 한다.
+    /// (WS_EX_TRANSPARENT 윈도우는 키보드 포커스를 받을 수 없으므로)
+    /// </summary>
     public void ShowIfFirstRun(Canvas canvas, Action onDismiss)
     {
         if (File.Exists(MarkerFilePath))
@@ -36,7 +44,6 @@ public sealed class OnboardingOverlay
         _canvas = canvas;
         _onDismiss = onDismiss;
 
-        // 가이드 텍스트
         var guideText = new TextBlock
         {
             Text = string.Join("\n", new[]
@@ -48,7 +55,7 @@ public sealed class OnboardingOverlay
                 "🎨  마우스 사이드 버튼 2 — 색상 전환",
                 "✏️  형광펜 모드에서 드래그하여 그리기",
                 "",
-                "아무 키나 눌러 시작하세요"
+                "아무 곳이나 클릭하거나 F9를 눌러 시작하세요"
             }),
             Foreground = Brushes.White,
             FontSize = 18,
@@ -59,7 +66,6 @@ public sealed class OnboardingOverlay
             LineHeight = 28
         };
 
-        // 중앙 정렬 컨테이너
         var grid = new Grid
         {
             Width = SystemParameters.VirtualScreenWidth,
@@ -67,39 +73,26 @@ public sealed class OnboardingOverlay
             Children = { guideText }
         };
 
-        // 반투명 검정 오버레이
         _overlayElement = new Border
         {
             Background = new SolidColorBrush(Colors.Black) { Opacity = 0.7 },
             Child = grid,
-            IsHitTestVisible = true,
-            Focusable = true,
+            IsHitTestVisible = false,
             Width = SystemParameters.VirtualScreenWidth,
             Height = SystemParameters.VirtualScreenHeight
         };
 
-        // 입력 이벤트 연결 (아무 키 또는 마우스 클릭)
-        _overlayElement.KeyDown += OnInputReceived;
-        _overlayElement.MouseDown += OnMouseInputReceived;
-
         Canvas.SetLeft(_overlayElement, 0);
         Canvas.SetTop(_overlayElement, 0);
         canvas.Children.Add(_overlayElement);
-
-        // 키보드 포커스를 받도록 설정
-        _overlayElement.Focus();
-        Keyboard.Focus(_overlayElement);
     }
 
-    /// <summary>키 입력 시 오버레이를 닫는다.</summary>
-    private void OnInputReceived(object sender, KeyEventArgs e)
+    /// <summary>
+    /// 외부(글로벌 훅)에서 호출하여 온보딩을 닫는다.
+    /// </summary>
+    public void DismissIfShowing()
     {
-        Dismiss();
-    }
-
-    /// <summary>마우스 클릭 시 오버레이를 닫는다.</summary>
-    private void OnMouseInputReceived(object sender, MouseButtonEventArgs e)
-    {
+        if (!IsShowing) return;
         Dismiss();
     }
 
@@ -107,10 +100,6 @@ public sealed class OnboardingOverlay
     private void Dismiss()
     {
         if (_overlayElement == null || _canvas == null) return;
-
-        // 이벤트 해제
-        _overlayElement.KeyDown -= OnInputReceived;
-        _overlayElement.MouseDown -= OnMouseInputReceived;
 
         // Canvas에서 제거
         _canvas.Children.Remove(_overlayElement);

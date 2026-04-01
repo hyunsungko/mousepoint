@@ -74,26 +74,14 @@ public sealed class LaserRenderer : IDisposable
         }
     }
 
-    // ─────────────────────────── 좌표 변환 ───────────────────────────
-
-    /// <summary>스크린 좌표 → Canvas 상대 좌표.</summary>
-    private static (double cx, double cy) ToCanvas(int screenX, int screenY)
-    {
-        return (
-            screenX - SystemParameters.VirtualScreenLeft,
-            screenY - SystemParameters.VirtualScreenTop
-        );
-    }
-
     // ─────────────────────────── 공개 API ───────────────────────────
 
-    /// <summary>마우스 훅에서 호출. 링 버퍼에 포인트를 추가한다.</summary>
-    public void OnMouseMove(int screenX, int screenY)
+    /// <summary>DPI 보정된 Canvas 좌표로 호출. 링 버퍼에 포인트를 추가한다.</summary>
+    public void OnMouseMove(double canvasX, double canvasY)
     {
         if (!_active) return;
 
-        var (cx, cy) = ToCanvas(screenX, screenY);
-        _buffer[_head] = (cx, cy);
+        _buffer[_head] = (canvasX, canvasY);
         _head = (_head + 1) % _buffer.Length;
         if (_count < _buffer.Length) _count++;
     }

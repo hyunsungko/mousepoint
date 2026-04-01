@@ -41,17 +41,6 @@ public sealed class HighlighterRenderer
         _thickness = preset.Thickness;
     }
 
-    // ─────────────────────────── 좌표 변환 ───────────────────────────
-
-    /// <summary>스크린 좌표 → Canvas 상대 좌표.</summary>
-    private static Point ToCanvas(int screenX, int screenY)
-    {
-        return new Point(
-            screenX - SystemParameters.VirtualScreenLeft,
-            screenY - SystemParameters.VirtualScreenTop
-        );
-    }
-
     // ─────────────────────────── 스타일 설정 ───────────────────────────
 
     /// <summary>형광펜 색상과 불투명도를 설정한다.</summary>
@@ -72,9 +61,9 @@ public sealed class HighlighterRenderer
     /// <summary>
     /// 좌클릭 다운: 새 Path + PathFigure를 시작한다.
     /// </summary>
-    public void OnLeftButtonDown(int screenX, int screenY)
+    public void OnLeftButtonDown(double canvasX, double canvasY)
     {
-        var pt = ToCanvas(screenX, screenY);
+        var pt = new Point(canvasX, canvasY);
 
         _currentFigure = new PathFigure
         {
@@ -104,23 +93,23 @@ public sealed class HighlighterRenderer
     /// <summary>
     /// 마우스 이동: 현재 PathFigure에 LineSegment를 추가한다.
     /// </summary>
-    public void OnMouseMove(int screenX, int screenY)
+    public void OnMouseMove(double canvasX, double canvasY)
     {
         if (!_isDragging || _currentFigure is null) return;
 
-        var pt = ToCanvas(screenX, screenY);
+        var pt = new Point(canvasX, canvasY);
         _currentFigure.Segments.Add(new LineSegment(pt, isStroked: true));
     }
 
     /// <summary>
     /// 좌클릭 업: Path를 완성하고 FadeOutManager에 등록한다.
     /// </summary>
-    public void OnLeftButtonUp(int screenX, int screenY)
+    public void OnLeftButtonUp(double canvasX, double canvasY)
     {
         if (!_isDragging || _currentPath is null) return;
 
         // 마지막 포인트 추가
-        var pt = ToCanvas(screenX, screenY);
+        var pt = new Point(canvasX, canvasY);
         _currentFigure?.Segments.Add(new LineSegment(pt, isStroked: true));
 
         // FadeOutManager에 등록 → lifetime 후 자동 fade-out

@@ -1,6 +1,6 @@
 ---
 name: ask-agent-mode
-enabled: true
+enabled: false
 event: all
 tool_matcher: Agent
 action: block

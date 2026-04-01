@@ -35,6 +35,10 @@ public partial class MainWindow : Window
     private int _lastMouseX;
     private int _lastMouseY;
 
+    // --- DPI 스케일링: 물리 픽셀 → WPF DIU 변환 ---
+    private double _dpiScaleX = 1.0;
+    private double _dpiScaleY = 1.0;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -54,6 +58,11 @@ public partial class MainWindow : Window
     {
         if (PresentationSource.FromVisual(this) is not HwndSource hwndSource) return;
         IntPtr hwnd = hwndSource.Handle;
+
+        // DPI 스케일 팩터 캐싱 (물리 픽셀 → WPF DIU 변환용)
+        var dpiScale = hwndSource.CompositionTarget.TransformFromDevice;
+        _dpiScaleX = dpiScale.M11;
+        _dpiScaleY = dpiScale.M22;
 
         // WS_EX_TRANSPARENT: 기본적으로 클릭 통과
         int exStyle = (int)NativeMethods.GetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE);
@@ -114,18 +123,20 @@ public partial class MainWindow : Window
             onHighlighterSelected: () => _appState.SetMode(ToolMode.Highlighter),
             onExitClicked: () =>
             {
-                _trayIconManager?.Dispose();
-                Application.Current.Shutdown();
+                // WinForms 스레드에서 호출될 수 있으므로 WPF Dispatcher로 마샬링
+                Dispatcher.BeginInvoke(() =>
+                {
+                    _trayIconManager?.Dispose();
+                    Application.Current.Shutdown();
+                });
             });
         _trayIconManager.UpdateState(_appState.CurrentMode);
 
         // 온보딩 오버레이 (첫 실행 체크)
+        // WS_EX_TRANSPARENT 윈도우는 키보드 포커스를 못 받으므로,
+        // 글로벌 훅(F9, 마우스 클릭, 사이드 버튼)으로 닫기 처리
         _onboardingOverlay = new OnboardingOverlay();
-        _onboardingOverlay.ShowIfFirstRun(OverlayCanvas, () =>
-        {
-            // 온보딩 완료 후 클릭 통과 복원
-            SetClickThrough(true);
-        });
+        _onboardingOverlay.ShowIfFirstRun(OverlayCanvas, () => { });
     }
 
     // ──────────────────────── WS_EX_TRANSPARENT 토글 ────────────────────────
@@ -157,27 +168,48 @@ public partial class MainWindow : Window
 
     // ──────────────────────── 마우스 이벤트 라우팅 ────────────────────────
 
+    /// <summary>물리 픽셀 좌표를 WPF DIU 좌표로 변환하여 Canvas 상대 좌표를 반환.</summary>
+    private (double cx, double cy) ScreenToCanvas(int screenX, int screenY)
+    {
+        double diuX = screenX * _dpiScaleX;
+        double diuY = screenY * _dpiScaleY;
+        return (diuX - Left, diuY - Top);
+    }
+
+    /// <summary>온보딩이 표시 중이면 닫는다.</summary>
+    private void TryDismissOnboarding()
+    {
+        if (_onboardingOverlay.IsShowing)
+        {
+            _onboardingOverlay.DismissIfShowing();
+        }
+    }
+
     private void OnMouseMoved(int x, int y)
     {
         _lastMouseX = x;
         _lastMouseY = y;
 
+        var (cx, cy) = ScreenToCanvas(x, y);
+
         switch (_appState.CurrentMode)
         {
             case ToolMode.Laser:
-                _laserRenderer.OnMouseMove(x, y);
+                _laserRenderer.OnMouseMove(cx, cy);
                 break;
             case ToolMode.Highlighter:
-                _highlighterRenderer.OnMouseMove(x, y);
+                _highlighterRenderer.OnMouseMove(cx, cy);
                 break;
         }
     }
 
     private void OnLeftButtonDown(int x, int y)
     {
+        TryDismissOnboarding();
         if (_appState.CurrentMode == ToolMode.Highlighter)
         {
-            _highlighterRenderer.OnLeftButtonDown(x, y);
+            var (cx, cy) = ScreenToCanvas(x, y);
+            _highlighterRenderer.OnLeftButtonDown(cx, cy);
         }
     }
 
@@ -185,12 +217,14 @@ public partial class MainWindow : Window
     {
         if (_appState.CurrentMode == ToolMode.Highlighter)
         {
-            _highlighterRenderer.OnLeftButtonUp(x, y);
+            var (cx, cy) = ScreenToCanvas(x, y);
+            _highlighterRenderer.OnLeftButtonUp(cx, cy);
         }
     }
 
     private void OnXButtonDown(int button)
     {
+        TryDismissOnboarding();
         switch (button)
         {
             case NativeMethods.XBUTTON1:
@@ -208,6 +242,7 @@ public partial class MainWindow : Window
 
     private void OnF9Pressed()
     {
+        TryDismissOnboarding();
         _appState.ToggleActivation();
     }
 
@@ -245,8 +280,9 @@ public partial class MainWindow : Window
         // 클릭 통과: 형광펜 모드에서는 해제, 나머지는 클릭 통과
         SetClickThrough(newMode != ToolMode.Highlighter);
 
-        // 모드 인디케이터 표시 (커서 근처)
-        _modeIndicator.Show(OverlayCanvas, newMode, _toolManager.ColorIndex, _lastMouseX, _lastMouseY);
+        // 모드 인디케이터 표시 (커서 근처, DPI 보정)
+        var (indicatorX, indicatorY) = ScreenToCanvas(_lastMouseX, _lastMouseY);
+        _modeIndicator.Show(OverlayCanvas, newMode, _toolManager.ColorIndex, indicatorX, indicatorY);
 
         // 트레이 아이콘 상태 업데이트
         _trayIconManager.UpdateState(newMode);
@@ -267,7 +303,8 @@ public partial class MainWindow : Window
         // 색상 변경 인디케이터 표시
         if (_appState.CurrentMode == ToolMode.Highlighter)
         {
-            _modeIndicator.Show(OverlayCanvas, ToolMode.Highlighter, colorIndex, _lastMouseX, _lastMouseY);
+            var (px, py) = ScreenToCanvas(_lastMouseX, _lastMouseY);
+            _modeIndicator.Show(OverlayCanvas, ToolMode.Highlighter, colorIndex, px, py);
         }
     }
 
