@@ -73,16 +73,26 @@ public class AppStateTests
     }
 
     [Fact]
-    public void CycleTool_형광펜에서_비활성으로()
+    public void CycleTool_형광펜에서_네모박스로()
     {
         _state.CycleTool(); // → Laser
         _state.CycleTool(); // → Highlighter
+        _state.CycleTool(); // → Rectangle
+        Assert.Equal(ToolMode.Rectangle, _state.CurrentMode);
+    }
+
+    [Fact]
+    public void CycleTool_네모박스에서_비활성으로()
+    {
+        _state.CycleTool(); // → Laser
+        _state.CycleTool(); // → Highlighter
+        _state.CycleTool(); // → Rectangle
         _state.CycleTool(); // → Inactive
         Assert.Equal(ToolMode.Inactive, _state.CurrentMode);
     }
 
     [Fact]
-    public void CycleTool_전체순환_Inactive_Laser_Highlighter_Inactive()
+    public void CycleTool_전체순환_Inactive_Laser_Highlighter_Rectangle_Inactive()
     {
         Assert.Equal(ToolMode.Inactive, _state.CurrentMode);
 
@@ -91,6 +101,9 @@ public class AppStateTests
 
         _state.CycleTool();
         Assert.Equal(ToolMode.Highlighter, _state.CurrentMode);
+
+        _state.CycleTool();
+        Assert.Equal(ToolMode.Rectangle, _state.CurrentMode);
 
         _state.CycleTool();
         Assert.Equal(ToolMode.Inactive, _state.CurrentMode);
@@ -203,11 +216,13 @@ public class AppStateTests
 
         _state.CycleTool(); // Inactive → Laser
         _state.CycleTool(); // Laser → Highlighter
-        _state.CycleTool(); // Highlighter → Inactive
+        _state.CycleTool(); // Highlighter → Rectangle
+        _state.CycleTool(); // Rectangle → Inactive
 
-        Assert.Equal(3, transitions.Count);
+        Assert.Equal(4, transitions.Count);
         Assert.Equal((ToolMode.Inactive, ToolMode.Laser), transitions[0]);
         Assert.Equal((ToolMode.Laser, ToolMode.Highlighter), transitions[1]);
-        Assert.Equal((ToolMode.Highlighter, ToolMode.Inactive), transitions[2]);
+        Assert.Equal((ToolMode.Highlighter, ToolMode.Rectangle), transitions[2]);
+        Assert.Equal((ToolMode.Rectangle, ToolMode.Inactive), transitions[3]);
     }
 }

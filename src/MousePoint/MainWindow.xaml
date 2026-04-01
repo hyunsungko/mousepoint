@@ -2,13 +2,11 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="MousePoint"
-        AllowsTransparency="True"
         WindowStyle="None"
         Background="Transparent"
         Topmost="True"
         ShowInTaskbar="False"
         ResizeMode="NoResize">
-    <!-- 2-레이어 Canvas: 완성된 스트로크와 활성 스트로크를 분리하여 렌더링 성능 확보 -->
     <Grid>
         <!-- 하위 레이어: 완성된 스트로크, 레이저 trail, 인디케이터 등 -->
         <Canvas x:Name="OverlayCanvas"

@@ -8,6 +8,7 @@ internal static class NativeMethods
     internal const int GWL_EXSTYLE = -20;
     internal const int WS_EX_TRANSPARENT = 0x00000020;
     internal const int WS_EX_TOOLWINDOW = 0x00000080;
+    internal const int WS_EX_LAYERED = 0x00080000;
 
     // --- Mouse Hook ---
     internal const int WH_MOUSE_LL = 14;
@@ -75,4 +76,24 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool GetCursorPos(out POINT lpPoint);
+
+    // --- DWM (Desktop Window Manager) ---
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct MARGINS
+    {
+        public int cxLeftWidth;
+        public int cxRightWidth;
+        public int cyTopHeight;
+        public int cyBottomHeight;
+    }
+
+    [DllImport("dwmapi.dll")]
+    internal static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref MARGINS pMarInset);
+
+    // --- Layered Window ---
+    internal const int LWA_COLORKEY = 0x00000001;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool SetLayeredWindowAttributes(IntPtr hwnd, uint crKey, byte bAlpha, uint dwFlags);
 }

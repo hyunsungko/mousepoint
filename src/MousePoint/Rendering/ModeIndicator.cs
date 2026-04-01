@@ -32,7 +32,7 @@ public sealed class ModeIndicator
     /// <param name="screenX">스크린 X 좌표.</param>
     /// <param name="screenY">스크린 Y 좌표.</param>
     public void Show(Canvas canvas, ToolMode mode, int colorIndex, double screenX, double screenY,
-        int thicknessIndex = 0, int laserColorIndex = 0)
+        int thicknessIndex = 0, int laserColorIndex = 0, double borderThickness = 0)
     {
         // 기존 인디케이터가 있으면 제거
         RemoveCurrent();
@@ -42,6 +42,7 @@ public sealed class ModeIndicator
         {
             ToolMode.Laser => GetLaserLabel(laserColorIndex),
             ToolMode.Highlighter => GetHighlighterLabel(colorIndex, thicknessIndex),
+            ToolMode.Rectangle => GetRectangleLabel(colorIndex, borderThickness),
             ToolMode.Inactive => ("⏸ 비활성", Color.FromRgb(128, 128, 128)),
             _ => ("⏸ 비활성", Color.FromRgb(128, 128, 128))
         };
@@ -145,6 +146,27 @@ public sealed class ModeIndicator
         };
 
         return ($"{emoji} 형광펜 ({preset.Name}·{thicknessLabel})", preset.Color);
+    }
+
+    /// <summary>네모박스 색상에 따른 라벨과 색상을 반환한다.</summary>
+    private static (string text, Color color) GetRectangleLabel(int colorIndex, double borderThickness = 0)
+    {
+        var preset = ColorPresets.GetHighlighterPreset(colorIndex);
+        string emoji = (colorIndex % ColorPresets.HighlighterColorCount) switch
+        {
+            0 => "🔴",
+            1 => "🟡",
+            2 => "🟢",
+            3 => "🔵",
+            _ => "🟡"
+        };
+        string thicknessLabel = borderThickness switch
+        {
+            <= 2.0 => "가늘게",
+            <= 4.0 => "보통",
+            _ => "굵게"
+        };
+        return ($"{emoji} 네모박스 ({preset.Name}·{thicknessLabel})", preset.Color);
     }
 
     /// <summary>현재 표시 중인 인디케이터를 Canvas에서 제거한다.</summary>

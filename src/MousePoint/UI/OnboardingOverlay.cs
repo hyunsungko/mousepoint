@@ -44,33 +44,70 @@ public sealed class OnboardingOverlay
         _canvas = canvas;
         _onDismiss = onDismiss;
 
-        var guideText = new TextBlock
+        var koText = new TextBlock
         {
             Text = string.Join("\n", new[]
             {
-                "MousePoint에 오신 것을 환영합니다!",
+                "MousePoint",
                 "",
-                "🎯  F9 — 활성화 / 비활성화",
-                "🔄  마우스 사이드 버튼 1 — 도구 전환",
-                "🎨  마우스 사이드 버튼 2 — 색상 전환",
-                "✏️  형광펜 모드에서 드래그하여 그리기",
+                "🎯  F9 — 활성화 / 비활성화 (오버레이 ON/OFF)",
+                "🔄  마우스 사이드 버튼 1 — 도구 순환 (레이저 → 형광펜 → 네모박스 → 비활성)",
+                "🎨  마우스 사이드 버튼 2 — 색상 순환",
+                "📏  스크롤 휠 — 형광펜 굵기 / 네모박스 테두리 굵기 조절",
                 "",
-                "아무 곳이나 클릭하거나 F9를 눌러 시작하세요"
+                "⌨️  단축키",
+                "    Ctrl+Shift+1  레이저     Ctrl+Shift+2  형광펜",
+                "    Ctrl+Shift+3  비활성     Ctrl+Shift+4  네모박스",
+                "    Ctrl+Shift+Q  종료",
+                "",
+                "아무 곳이나 클릭하거나 F9를 눌러 시작하세요",
             }),
             Foreground = Brushes.White,
-            FontSize = 18,
+            FontSize = 17,
             FontWeight = FontWeights.Medium,
             TextAlignment = TextAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            LineHeight = 28
+            LineHeight = 26
         };
+
+        var enText = new TextBlock
+        {
+            Text = string.Join("\n", new[]
+            {
+                "",
+                "F9 — Toggle overlay  |  Side Button 1 — Cycle tools  |  Side Button 2 — Cycle colors",
+                "Scroll Wheel — Adjust thickness  |  Ctrl+Shift+Q — Quit",
+            }),
+            Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 180)),
+            FontSize = 13,
+            TextAlignment = TextAlignment.Center,
+            LineHeight = 20
+        };
+
+        var escText = new TextBlock
+        {
+            Text = "\nESC — 종료 / Quit",
+            Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 120)),
+            FontSize = 12,
+            TextAlignment = TextAlignment.Center,
+            Margin = new Thickness(0, 10, 0, 0)
+        };
+
+        var stack = new StackPanel
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Children = { koText, enText, escText }
+        };
+
+        // Canvas 전체를 덮고 중앙 정렬 (멀티모니터 대응)
+        double canvasW = canvas.ActualWidth > 0 ? canvas.ActualWidth : SystemParameters.VirtualScreenWidth;
+        double canvasH = canvas.ActualHeight > 0 ? canvas.ActualHeight : SystemParameters.VirtualScreenHeight;
 
         var grid = new Grid
         {
-            Width = SystemParameters.VirtualScreenWidth,
-            Height = SystemParameters.VirtualScreenHeight,
-            Children = { guideText }
+            Width = canvasW,
+            Height = canvasH,
+            Children = { stack }
         };
 
         _overlayElement = new Border
@@ -78,8 +115,8 @@ public sealed class OnboardingOverlay
             Background = new SolidColorBrush(Colors.Black) { Opacity = 0.7 },
             Child = grid,
             IsHitTestVisible = false,
-            Width = SystemParameters.VirtualScreenWidth,
-            Height = SystemParameters.VirtualScreenHeight
+            Width = canvasW,
+            Height = canvasH
         };
 
         Canvas.SetLeft(_overlayElement, 0);

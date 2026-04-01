@@ -76,6 +76,7 @@ public sealed class ToolManager
         switch (_appState.CurrentMode)
         {
             case ToolMode.Highlighter:
+            case ToolMode.Rectangle:
                 _colorIndex = (_colorIndex + 1) % ColorPresets.HighlighterColorCount;
                 PresetChanged?.Invoke(_colorIndex, _thicknessIndex);
                 break;
