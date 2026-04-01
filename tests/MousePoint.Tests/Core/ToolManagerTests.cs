@@ -52,13 +52,16 @@ public class ToolManagerTests
     }
 
     [Fact]
-    public void CycleTool_비활성에서_레이저_형광펜_비활성()
+    public void CycleTool_비활성에서_레이저_형광펜_네모박스_비활성()
     {
         _manager.CycleTool(); // → Laser
         Assert.Equal(ToolMode.Laser, _manager.CurrentMode);
 
         _manager.CycleTool(); // → Highlighter
         Assert.Equal(ToolMode.Highlighter, _manager.CurrentMode);
+
+        _manager.CycleTool(); // → Rectangle
+        Assert.Equal(ToolMode.Rectangle, _manager.CurrentMode);
 
         _manager.CycleTool(); // → Inactive
         Assert.Equal(ToolMode.Inactive, _manager.CurrentMode);
