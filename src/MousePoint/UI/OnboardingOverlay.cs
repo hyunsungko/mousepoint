@@ -26,6 +26,9 @@ public sealed class OnboardingOverlay
     /// <summary>온보딩 오버레이가 현재 표시 중인지 여부.</summary>
     public bool IsShowing => _overlayElement != null;
 
+    /// <summary>첫 실행인지 확인 (마커 파일 유무).</summary>
+    public bool IsFirstRun() => !File.Exists(MarkerFilePath);
+
     /// <summary>
     /// 첫 실행이면 안내 오버레이를 표시한다. 이미 사용한 적 있으면 아무 것도 하지 않는다.
     /// </summary>

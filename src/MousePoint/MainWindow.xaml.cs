@@ -148,14 +148,19 @@ public partial class MainWindow : Window
         _trayIconManager.UpdateState(_appState.CurrentMode);
 
         // 온보딩 오버레이 (첫 실행 체크)
-        // WS_EX_TRANSPARENT 윈도우는 키보드 포커스를 못 받으므로,
-        // 글로벌 훅(F9, 마우스 클릭, 사이드 버튼)으로 닫기 처리
         _onboardingOverlay = new OnboardingOverlay();
-        _onboardingOverlay.ShowIfFirstRun(OverlayCanvas, () =>
+        if (_onboardingOverlay.IsFirstRun())
         {
-            // 온보딩 닫힌 후 레이저 모드로 자동 진입
+            // 첫 실행: 레이저 모드로 먼저 진입하여 윈도우를 활성화한 후 온보딩 표시
+            // DWM 모드에서는 Inactive 상태면 윈도우가 숨겨져 온보딩이 안 보임
             _appState.SetMode(ToolMode.Laser);
-        });
+            _onboardingOverlay.ShowIfFirstRun(OverlayCanvas, () => { });
+        }
+        else
+        {
+            // 이미 사용한 적 있으면 레이저 모드로 바로 시작
+            _appState.SetMode(ToolMode.Laser);
+        }
     }
 
     // ──────────────────────── 오버레이 표시/숨김 ────────────────────────
