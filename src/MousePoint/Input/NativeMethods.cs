@@ -16,6 +16,7 @@ internal static class NativeMethods
     internal const int WM_LBUTTONUP = 0x0202;
     internal const int WM_XBUTTONDOWN = 0x020B;
     internal const int WM_XBUTTONUP = 0x020C;
+    internal const int WM_MOUSEWHEEL = 0x020A;
     internal const int XBUTTON1 = 0x0001;
     internal const int XBUTTON2 = 0x0002;
 

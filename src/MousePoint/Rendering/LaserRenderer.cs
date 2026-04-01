@@ -76,6 +76,27 @@ public sealed class LaserRenderer : IDisposable
 
     // ─────────────────────────── 공개 API ───────────────────────────
 
+    /// <summary>레이저 포인터와 트레일의 색상을 변경한다.</summary>
+    public void SetColor(Color mainColor, Color glowColor)
+    {
+        var pointerBrush = new SolidColorBrush(mainColor);
+        pointerBrush.Freeze();
+        _pointer.Fill = pointerBrush;
+
+        _pointer.Effect = new DropShadowEffect
+        {
+            Color = glowColor,
+            BlurRadius = 20,
+            ShadowDepth = 0,
+            Opacity = 1.0
+        };
+
+        for (int i = 0; i < _trailPool.Length; i++)
+        {
+            _trailPool[i].Stroke = new SolidColorBrush(mainColor);
+        }
+    }
+
     /// <summary>DPI 보정된 Canvas 좌표로 호출. 링 버퍼에 포인트를 추가한다.</summary>
     public void OnMouseMove(double canvasX, double canvasY)
     {

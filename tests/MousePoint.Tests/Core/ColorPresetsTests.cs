@@ -167,4 +167,74 @@ public class ColorPresetsTests
             Assert.Equal(ColorPresets.GetHighlighterPreset(i).Opacity, ColorPresets.GetHighlighterOpacity(i));
         }
     }
+
+    // --- 레이저 프리셋 검증 ---
+
+    [Fact]
+    public void LaserColorCount_4개()
+    {
+        Assert.Equal(4, ColorPresets.LaserColorCount);
+    }
+
+    [Fact]
+    public void GetLaserPreset_0_빨강()
+    {
+        var preset = ColorPresets.GetLaserPreset(0);
+        Assert.Equal("빨강", preset.Name);
+        Assert.Equal(Color.FromRgb(255, 0, 0), preset.MainColor);
+        Assert.Equal(Color.FromRgb(255, 80, 80), preset.GlowColor);
+    }
+
+    [Fact]
+    public void GetLaserPreset_1_초록()
+    {
+        var preset = ColorPresets.GetLaserPreset(1);
+        Assert.Equal("초록", preset.Name);
+        Assert.Equal(Color.FromRgb(0, 220, 0), preset.MainColor);
+        Assert.Equal(Color.FromRgb(80, 255, 80), preset.GlowColor);
+    }
+
+    [Fact]
+    public void GetLaserPreset_2_파랑()
+    {
+        var preset = ColorPresets.GetLaserPreset(2);
+        Assert.Equal("파랑", preset.Name);
+        Assert.Equal(Color.FromRgb(0, 100, 255), preset.MainColor);
+        Assert.Equal(Color.FromRgb(80, 150, 255), preset.GlowColor);
+    }
+
+    [Fact]
+    public void GetLaserPreset_3_노랑()
+    {
+        var preset = ColorPresets.GetLaserPreset(3);
+        Assert.Equal("노랑", preset.Name);
+        Assert.Equal(Color.FromRgb(255, 220, 0), preset.MainColor);
+        Assert.Equal(Color.FromRgb(255, 240, 100), preset.GlowColor);
+    }
+
+    [Fact]
+    public void GetLaserPreset_인덱스순환()
+    {
+        var preset4 = ColorPresets.GetLaserPreset(4);
+        var preset0 = ColorPresets.GetLaserPreset(0);
+        Assert.Equal(preset0, preset4);
+    }
+
+    [Fact]
+    public void GetLaserColor_프리셋MainColor와_일치()
+    {
+        for (int i = 0; i < ColorPresets.LaserColorCount; i++)
+        {
+            Assert.Equal(ColorPresets.GetLaserPreset(i).MainColor, ColorPresets.GetLaserColor(i));
+        }
+    }
+
+    [Fact]
+    public void GetLaserGlowColor_프리셋GlowColor와_일치()
+    {
+        for (int i = 0; i < ColorPresets.LaserColorCount; i++)
+        {
+            Assert.Equal(ColorPresets.GetLaserPreset(i).GlowColor, ColorPresets.GetLaserGlowColor(i));
+        }
+    }
 }
