@@ -1,0 +1,21 @@
+{
+  "sessionName": "mousepoint-phase2",
+  "repoRoot": "/home/ffgtt/projects/mousepoint-dev",
+  "baseRef": "HEAD",
+  "replaceExisting": true,
+  "launcherCommand": "claude --dangerously-skip-permissions -p \"$(cat {task_file})\" 2>&1 | tee {handoff_file}; echo DONE >> {status_file}",
+  "workers": [
+    {
+      "name": "tdd-tests",
+      "task": "## MousePoint TDD 테스트 작성\n\n이 프로젝트는 C#/.NET 8 WPF 강의용 화면 오버레이 주석 도구입니다.\n\n### 목표\nCore 로직에 대한 xUnit 단위 테스트를 작성하세요. tests/MousePoint.Tests/ 디렉토리에 작성합니다.\n\n### 작성할 테스트 파일\n\n1. **tests/MousePoint.Tests/Core/AppStateTests.cs**\n   - ToggleActivation: Inactive→Laser→Inactive 순환\n   - CycleTool: Inactive→Laser→Highlighter→Inactive 순환\n   - SetMode: 직접 모드 설정\n   - ModeChanged 이벤트 발생 확인\n   - 같은 모드로 SetMode 시 이벤트 미발생 확인\n\n2. **tests/MousePoint.Tests/Core/ColorPresetsTests.cs**\n   - HighlighterColorCount가 4인지\n   - ThicknessCount가 3인지\n   - GetHighlighterPreset 인덱스 순환 (modulo) 동작\n   - GetThickness 인덱스 순환 동작\n   - 각 프리셋의 Name, Color, Opacity, Thickness 값 검증\n\n3. **기존 tests/MousePoint.Tests/Core/ToolManagerTests.cs 검토 및 보강**\n   - CyclePreset 테스트: 형광펜 모드에서 색상 순환\n   - CyclePreset 테스트: 레이저/비활성 모드에서 무시\n   - 이벤트 발생 확인\n\n### 빌드/테스트 명령\n```bash\nexport DOTNET_ROOT=$HOME/.dotnet && export PATH=$PATH:$DOTNET_ROOT\ndotnet test tests/MousePoint.Tests/\n```\n\n### 참고\n- src/MousePoint/Core/AppState.cs 의 public API 참조\n- src/MousePoint/Core/ColorPresets.cs 의 public API 참조\n- src/MousePoint/Core/ToolManager.cs 의 public API 참조\n- 테스트가 모두 통과해야 합니다 (dotnet test 성공)"
+    },
+    {
+      "name": "code-reviewer",
+      "task": "## MousePoint 코드 리뷰\n\n이 프로젝트는 C#/.NET 8 WPF 강의용 화면 오버레이 주석 도구입니다.\n\n### 리뷰 범위\nsrc/MousePoint/ 전체 소스코드를 리뷰하세요.\n\n### 리뷰 기준\n1. **코드 품질**: 네이밍, 구조, 가독성, C# 컨벤션\n2. **아키텍처**: 관심사 분리, 의존성 방향, SOLID 원칙\n3. **WPF 패턴**: MVVM 위반 없는지, 리소스 관리, Dispatcher 사용\n4. **메모리 관리**: IDisposable 패턴, 이벤트 해제, Canvas 요소 정리\n5. **에러 처리**: null 체크, 예외 처리, 방어적 프로그래밍\n6. **성능**: CompositionTarget.Rendering 사용 패턴, 불필요한 할당, 링 버퍼 효율성\n\n### 출력 형식\n이슈를 발견하면 직접 수정하세요 (Edit 도구 사용). 수정할 수 없는 구조적 이슈는 handoff에 기록하세요.\n\n### 빌드 검증\n수정 후 반드시 빌드가 성공하는지 확인:\n```bash\nexport DOTNET_ROOT=$HOME/.dotnet && export PATH=$PATH:$DOTNET_ROOT\ndotnet build MousePoint.sln\n```"
+    },
+    {
+      "name": "security-reviewer",
+      "task": "## MousePoint 보안 리뷰\n\n이 프로젝트는 C#/.NET 8 WPF 강의용 화면 오버레이 주석 도구입니다. Win32 P/Invoke를 사용합니다.\n\n### 리뷰 포커스\n\n1. **P/Invoke 안전성** (src/MousePoint/Input/NativeMethods.cs)\n   - DllImport 선언이 올바른지\n   - SetLastError 적절히 사용하는지\n   - Marshal 관련 안전성 (구조체 레이아웃, 포인터 변환)\n\n2. **글로벌 훅 보안** (src/MousePoint/Input/GlobalMouseHook.cs)\n   - 훅 콜백에서 예외 발생 시 처리\n   - CallNextHookEx 항상 호출하는지 (다른 앱 영향)\n   - 훅 핸들 유출 방지\n\n3. **윈도우 스타일 조작** (src/MousePoint/MainWindow.xaml.cs)\n   - WS_EX_TRANSPARENT 토글의 안전성\n   - 윈도우 핸들 유효성 검사\n\n4. **파일 시스템 접근** (src/MousePoint/UI/OnboardingOverlay.cs)\n   - 경로 주입 가능성\n   - 파일 생성 시 권한 이슈\n\n5. **리소스 누수**\n   - IDisposable 패턴 올바른 구현\n   - 이벤트 핸들러 해제\n   - NotifyIcon 정리\n\n### 출력 형식\n보안 이슈를 발견하면 직접 수정하세요. 수정 후 빌드 확인:\n```bash\nexport DOTNET_ROOT=$HOME/.dotnet && export PATH=$PATH:$DOTNET_ROOT\ndotnet build MousePoint.sln\n```"
+    }
+  ]
+}

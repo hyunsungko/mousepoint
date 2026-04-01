@@ -7,10 +7,13 @@ public partial class App : Application
 {
     private const string MutexName = "Global\\MousePoint_SingleInstance_7A3B2C1D";
     private Mutex? _mutex;
+    private bool _ownsMutex;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         _mutex = new Mutex(true, MutexName, out bool createdNew);
+        _ownsMutex = createdNew;
+
         if (!createdNew)
         {
             MessageBox.Show("MousePoint가 이미 실행 중입니다.", "MousePoint",
@@ -24,8 +27,11 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        try { _mutex?.ReleaseMutex(); }
-        catch (ApplicationException) { /* Mutex was not owned — safe to ignore */ }
+        if (_ownsMutex)
+        {
+            try { _mutex?.ReleaseMutex(); }
+            catch (ApplicationException) { /* safe to ignore */ }
+        }
         _mutex?.Dispose();
         base.OnExit(e);
     }

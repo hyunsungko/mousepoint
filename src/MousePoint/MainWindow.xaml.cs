@@ -56,10 +56,10 @@ public partial class MainWindow : Window
         IntPtr hwnd = hwndSource.Handle;
 
         // WS_EX_TRANSPARENT: 기본적으로 클릭 통과
-        int exStyle = NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
+        int exStyle = (int)NativeMethods.GetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE);
         exStyle |= NativeMethods.WS_EX_TRANSPARENT;
         exStyle |= NativeMethods.WS_EX_TOOLWINDOW; // Alt+Tab에서 숨김
-        NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, exStyle);
+        NativeMethods.SetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE, (IntPtr)exStyle);
 
         // 키보드 훅 (RegisterHotKey는 Window Handle이 필요)
         _keyboardHook = new GlobalKeyboardHook(this);
@@ -141,7 +141,7 @@ public partial class MainWindow : Window
         if (hwndSource == null) return;
 
         IntPtr hwnd = hwndSource.Handle;
-        int exStyle = NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
+        int exStyle = (int)NativeMethods.GetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE);
 
         if (transparent)
         {
@@ -152,7 +152,7 @@ public partial class MainWindow : Window
             exStyle &= ~NativeMethods.WS_EX_TRANSPARENT;
         }
 
-        NativeMethods.SetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE, exStyle);
+        NativeMethods.SetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE, (IntPtr)exStyle);
     }
 
     // ──────────────────────── 마우스 이벤트 라우팅 ────────────────────────

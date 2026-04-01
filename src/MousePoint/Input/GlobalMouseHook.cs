@@ -54,6 +54,13 @@ internal sealed class GlobalMouseHook : IDisposable
             _hookProc,
             NativeMethods.GetModuleHandle(curModule.ModuleName),
             0);
+
+        if (_hookId == IntPtr.Zero)
+        {
+            int error = Marshal.GetLastWin32Error();
+            System.Diagnostics.Debug.WriteLine(
+                $"SetWindowsHookEx failed with error code {error}");
+        }
     }
 
     private void Uninstall()
@@ -84,39 +91,47 @@ internal sealed class GlobalMouseHook : IDisposable
 
     private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
-        if (nCode >= 0)
+        try
         {
-            _lastHookCallback = DateTime.UtcNow;
-            var hookStruct = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam);
-            int msg = (int)wParam;
-            int x = hookStruct.pt.x;
-            int y = hookStruct.pt.y;
-
-            // 최소 작업만 수행 → Dispatcher로 분리
-            switch (msg)
+            if (nCode >= 0)
             {
-                case NativeMethods.WM_MOUSEMOVE:
-                    _dispatcher.BeginInvoke(() => MouseMoved?.Invoke(x, y));
-                    break;
+                _lastHookCallback = DateTime.UtcNow;
+                var hookStruct = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam);
+                int msg = (int)wParam;
+                int x = hookStruct.pt.x;
+                int y = hookStruct.pt.y;
 
-                case NativeMethods.WM_LBUTTONDOWN:
-                    _dispatcher.BeginInvoke(() => LeftButtonDown?.Invoke(x, y));
-                    break;
+                // 최소 작업만 수행 → Dispatcher로 분리
+                switch (msg)
+                {
+                    case NativeMethods.WM_MOUSEMOVE:
+                        _dispatcher.BeginInvoke(() => MouseMoved?.Invoke(x, y));
+                        break;
 
-                case NativeMethods.WM_LBUTTONUP:
-                    _dispatcher.BeginInvoke(() => LeftButtonUp?.Invoke(x, y));
-                    break;
+                    case NativeMethods.WM_LBUTTONDOWN:
+                        _dispatcher.BeginInvoke(() => LeftButtonDown?.Invoke(x, y));
+                        break;
 
-                case NativeMethods.WM_XBUTTONDOWN:
-                    int xBtnDown = (int)((hookStruct.mouseData >> 16) & 0xFFFF);
-                    _dispatcher.BeginInvoke(() => XButtonDown?.Invoke(xBtnDown));
-                    break;
+                    case NativeMethods.WM_LBUTTONUP:
+                        _dispatcher.BeginInvoke(() => LeftButtonUp?.Invoke(x, y));
+                        break;
 
-                case NativeMethods.WM_XBUTTONUP:
-                    int xBtnUp = (int)((hookStruct.mouseData >> 16) & 0xFFFF);
-                    _dispatcher.BeginInvoke(() => XButtonUp?.Invoke(xBtnUp));
-                    break;
+                    case NativeMethods.WM_XBUTTONDOWN:
+                        int xBtnDown = (int)((hookStruct.mouseData >> 16) & 0xFFFF);
+                        _dispatcher.BeginInvoke(() => XButtonDown?.Invoke(xBtnDown));
+                        break;
+
+                    case NativeMethods.WM_XBUTTONUP:
+                        int xBtnUp = (int)((hookStruct.mouseData >> 16) & 0xFFFF);
+                        _dispatcher.BeginInvoke(() => XButtonUp?.Invoke(xBtnUp));
+                        break;
+                }
             }
+        }
+        catch
+        {
+            // 훅 콜백에서 예외가 전파되면 CallNextHookEx가 호출되지 않아
+            // 시스템 전체의 마우스 훅 체인이 파손된다. 반드시 삼킨다.
         }
 
         return NativeMethods.CallNextHookEx(_hookId, nCode, wParam, lParam);
