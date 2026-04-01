@@ -24,6 +24,7 @@ public partial class MainWindow : Window
     // --- 렌더링 ---
     private LaserRenderer _laserRenderer = null!;
     private HighlighterRenderer _highlighterRenderer = null!;
+    private RectangleRenderer _rectangleRenderer = null!;
     private FadeOutManager _fadeOutManager = null!;
     private ModeIndicator _modeIndicator = null!;
 
@@ -84,6 +85,8 @@ public partial class MainWindow : Window
         _keyboardHook.CtrlShift1Pressed += OnCtrlShift1;
         _keyboardHook.CtrlShift2Pressed += OnCtrlShift2;
         _keyboardHook.CtrlShift3Pressed += OnCtrlShift3;
+        _keyboardHook.CtrlShift4Pressed += OnCtrlShift4;
+        _keyboardHook.EscPressed += OnEscPressed;
         _keyboardHook.CtrlShiftQPressed += OnCtrlShiftQ;
     }
 
@@ -120,6 +123,7 @@ public partial class MainWindow : Window
         // 렌더러
         _laserRenderer = new LaserRenderer(OverlayCanvas);
         _highlighterRenderer = new HighlighterRenderer(OverlayCanvas, ActiveCanvas, _fadeOutManager);
+        _rectangleRenderer = new RectangleRenderer(OverlayCanvas, ActiveCanvas, _fadeOutManager);
 
         // 프리셋 변경 시 형광펜 색상/굵기 반영
         _toolManager.PresetChanged += OnPresetChanged;
@@ -147,7 +151,11 @@ public partial class MainWindow : Window
         // WS_EX_TRANSPARENT 윈도우는 키보드 포커스를 못 받으므로,
         // 글로벌 훅(F9, 마우스 클릭, 사이드 버튼)으로 닫기 처리
         _onboardingOverlay = new OnboardingOverlay();
-        _onboardingOverlay.ShowIfFirstRun(OverlayCanvas, () => { });
+        _onboardingOverlay.ShowIfFirstRun(OverlayCanvas, () =>
+        {
+            // 온보딩 닫힌 후 레이저 모드로 자동 진입
+            _appState.SetMode(ToolMode.Laser);
+        });
     }
 
     // ──────────────────────── 오버레이 표시/숨김 ────────────────────────
@@ -207,25 +215,38 @@ public partial class MainWindow : Window
             case ToolMode.Highlighter:
                 _highlighterRenderer.OnMouseMove(cx, cy);
                 break;
+            case ToolMode.Rectangle:
+                _rectangleRenderer.OnMouseMove(cx, cy);
+                break;
         }
     }
 
     private void OnLeftButtonDown(int x, int y)
     {
         TryDismissOnboarding();
-        if (_appState.CurrentMode == ToolMode.Highlighter)
+        var (cx, cy) = ScreenToCanvas(x, y);
+        switch (_appState.CurrentMode)
         {
-            var (cx, cy) = ScreenToCanvas(x, y);
-            _highlighterRenderer.OnLeftButtonDown(cx, cy);
+            case ToolMode.Highlighter:
+                _highlighterRenderer.OnLeftButtonDown(cx, cy);
+                break;
+            case ToolMode.Rectangle:
+                _rectangleRenderer.OnLeftButtonDown(cx, cy);
+                break;
         }
     }
 
     private void OnLeftButtonUp(int x, int y)
     {
-        if (_appState.CurrentMode == ToolMode.Highlighter)
+        var (cx, cy) = ScreenToCanvas(x, y);
+        switch (_appState.CurrentMode)
         {
-            var (cx, cy) = ScreenToCanvas(x, y);
-            _highlighterRenderer.OnLeftButtonUp(cx, cy);
+            case ToolMode.Highlighter:
+                _highlighterRenderer.OnLeftButtonUp(cx, cy);
+                break;
+            case ToolMode.Rectangle:
+                _rectangleRenderer.OnLeftButtonUp(cx, cy);
+                break;
         }
     }
 
@@ -247,9 +268,17 @@ public partial class MainWindow : Window
 
     private void OnMouseWheel(int delta)
     {
-        if (_appState.CurrentMode == ToolMode.Highlighter)
+        switch (_appState.CurrentMode)
         {
-            _toolManager.CycleThickness(delta > 0);
+            case ToolMode.Highlighter:
+                _toolManager.CycleThickness(delta > 0);
+                break;
+            case ToolMode.Rectangle:
+                _rectangleRenderer.CycleBorderThickness(delta > 0);
+                var (rx, ry) = ScreenToCanvas(_lastMouseX, _lastMouseY);
+                _modeIndicator.Show(OverlayCanvas, ToolMode.Rectangle, _toolManager.ColorIndex, rx, ry,
+                    borderThickness: _rectangleRenderer.CurrentBorderThickness);
+                break;
         }
     }
 
@@ -276,6 +305,26 @@ public partial class MainWindow : Window
         _appState.SetMode(ToolMode.Inactive);
     }
 
+    private void OnCtrlShift4()
+    {
+        _appState.SetMode(ToolMode.Rectangle);
+    }
+
+    private void OnEscPressed()
+    {
+        if (_onboardingOverlay.IsShowing)
+        {
+            // 온보딩 표시 중이면 종료
+            _trayIconManager?.Dispose();
+            Application.Current.Shutdown();
+        }
+        else
+        {
+            // 활성 상태면 비활성화
+            _appState.SetMode(ToolMode.Inactive);
+        }
+    }
+
     private void OnCtrlShiftQ()
     {
         _trayIconManager?.Dispose();
@@ -292,21 +341,37 @@ public partial class MainWindow : Window
         // 레이저 렌더러 활성/비활성 전환
         _laserRenderer.SetActive(newMode == ToolMode.Laser);
 
-        // 형광펜에서 다른 모드로 전환 시 진행 중인 스트로크 취소
+        // 형광펜/네모박스에서 다른 모드로 전환 시 진행 중인 드래그 취소
         if (oldMode == ToolMode.Highlighter && newMode != ToolMode.Highlighter)
-        {
             _highlighterRenderer.CancelCurrentStroke();
-        }
+        if (oldMode == ToolMode.Rectangle && newMode != ToolMode.Rectangle)
+            _rectangleRenderer.CancelCurrentRect();
 
-        // Inactive면 오버레이 숨김 (데스크톱 자유 사용), 활성이면 표시
-        SetOverlayVisible(newMode != ToolMode.Inactive);
-
-        // 모드 인디케이터 표시 (오버레이가 보일 때만)
+        // 모드 인디케이터 표시 (Inactive 포함 모든 모드)
         if (newMode != ToolMode.Inactive)
         {
+            SetOverlayVisible(true);
             var (indicatorX, indicatorY) = ScreenToCanvas(_lastMouseX, _lastMouseY);
             _modeIndicator.Show(OverlayCanvas, newMode, _toolManager.ColorIndex, indicatorX, indicatorY,
                 _toolManager.ThicknessIndex, _toolManager.LaserColorIndex);
+        }
+        else
+        {
+            // 비활성 인디케이터를 잠깐 보여준 후 윈도우 숨김
+            var (indicatorX, indicatorY) = ScreenToCanvas(_lastMouseX, _lastMouseY);
+            _modeIndicator.Show(OverlayCanvas, ToolMode.Inactive, 0, indicatorX, indicatorY);
+
+            var hideTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(600)
+            };
+            hideTimer.Tick += (_, _) =>
+            {
+                hideTimer.Stop();
+                if (_appState.CurrentMode == ToolMode.Inactive)
+                    SetOverlayVisible(false);
+            };
+            hideTimer.Start();
         }
 
         // 트레이 아이콘 상태 업데이트
@@ -324,12 +389,18 @@ public partial class MainWindow : Window
 
         _highlighterRenderer.SetColor(color, opacity);
         _highlighterRenderer.SetThickness(thickness);
+        _rectangleRenderer.SetColor(color, opacity);
 
         // 색상 변경 인디케이터 표시
         if (_appState.CurrentMode == ToolMode.Highlighter)
         {
             var (px, py) = ScreenToCanvas(_lastMouseX, _lastMouseY);
             _modeIndicator.Show(OverlayCanvas, ToolMode.Highlighter, colorIndex, px, py, thicknessIndex);
+        }
+        else if (_appState.CurrentMode == ToolMode.Rectangle)
+        {
+            var (px, py) = ScreenToCanvas(_lastMouseX, _lastMouseY);
+            _modeIndicator.Show(OverlayCanvas, ToolMode.Rectangle, colorIndex, px, py);
         }
     }
 

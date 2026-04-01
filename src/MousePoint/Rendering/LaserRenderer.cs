@@ -40,8 +40,8 @@ public sealed class LaserRenderer : IDisposable
         _canvas = canvas ?? throw new ArgumentNullException(nameof(canvas));
         _buffer = new (double, double)[bufferSize];
 
-        // 포인터 원: 빨간색 + DropShadow 발광 효과
-        var pointerBrush = new SolidColorBrush(ColorPresets.LaserColor);
+        // 포인터 원: 반투명 + DropShadow 발광 효과
+        var pointerBrush = new SolidColorBrush(ColorPresets.LaserColor) { Opacity = 0.5 };
         pointerBrush.Freeze();
 
         _pointer = new Ellipse
@@ -79,7 +79,7 @@ public sealed class LaserRenderer : IDisposable
     /// <summary>레이저 포인터와 트레일의 색상을 변경한다.</summary>
     public void SetColor(Color mainColor, Color glowColor)
     {
-        var pointerBrush = new SolidColorBrush(mainColor);
+        var pointerBrush = new SolidColorBrush(mainColor) { Opacity = 0.5 };
         pointerBrush.Freeze();
         _pointer.Fill = pointerBrush;
 
@@ -160,7 +160,10 @@ public sealed class LaserRenderer : IDisposable
             int idx = (startIdx + i) % _buffer.Length;
             var (px, py) = _buffer[idx];
 
-            double opacity = (total == 1) ? 1.0 : (double)i / (total - 1);
+            // 이차 곡선 그라데이션: 꼬리는 빠르게 투명, 중앙 근처에서 부드럽게 나타남
+            // t: 0.0(꼬리) → 1.0(최신). opacity = t² * 0.5 (최대 0.5로 중앙 원과 통일)
+            double t = (total == 1) ? 1.0 : (double)i / (total - 1);
+            double opacity = t * t * 0.5;
 
             if (hasPrev && lineIdx < _trailPool.Length)
             {
@@ -170,6 +173,7 @@ public sealed class LaserRenderer : IDisposable
                 line.X2 = px;
                 line.Y2 = py;
                 ((SolidColorBrush)line.Stroke).Opacity = opacity;
+                line.StrokeThickness = ColorPresets.LaserTrailWidth * (0.3 + 0.7 * t); // 꼬리는 가늘게
                 _canvas.Children.Add(line);
                 lineIdx++;
             }

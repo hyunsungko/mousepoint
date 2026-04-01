@@ -4,7 +4,8 @@ public enum ToolMode
 {
     Inactive,
     Laser,
-    Highlighter
+    Highlighter,
+    Rectangle
 }
 
 /// <summary>
@@ -44,7 +45,8 @@ public sealed class AppState
         {
             ToolMode.Inactive => ToolMode.Laser,
             ToolMode.Laser => ToolMode.Highlighter,
-            ToolMode.Highlighter => ToolMode.Inactive,
+            ToolMode.Highlighter => ToolMode.Rectangle,
+            ToolMode.Rectangle => ToolMode.Inactive,
             _ => ToolMode.Inactive
         };
 
