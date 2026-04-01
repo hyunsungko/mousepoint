@@ -1,0 +1,29 @@
+{
+  "date": "2026-04-01",
+  "window": "7d",
+  "metrics": {
+    "commits": 31,
+    "contributors": 1,
+    "prs_merged": 2,
+    "insertions": 4623,
+    "deletions": 1125,
+    "net_loc": 3498,
+    "test_loc": 876,
+    "test_ratio": 0.19,
+    "active_days": 1,
+    "sessions": 4,
+    "deep_sessions": 2,
+    "avg_session_minutes": 105,
+    "loc_per_session_hour": 500,
+    "feat_pct": 0.16,
+    "fix_pct": 0.32,
+    "peak_hour": 18,
+    "ai_assisted_commits": 31
+  },
+  "authors": {
+    "고현성": { "commits": 31, "insertions": 4623, "deletions": 1125, "test_ratio": 0.19, "top_area": "src/MousePoint/" }
+  },
+  "version_range": ["0.0.0", "0.2.0.0"],
+  "streak_days": 1,
+  "tweetable": "Apr 1: 31 commits, 4.6k LOC, 106 tests, v0.2.0 shipped in 1 day | DWM perf fix + rectangle tool + 4-color laser + GitHub Release"
+}
