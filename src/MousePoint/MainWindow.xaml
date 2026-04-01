@@ -1,0 +1,15 @@
+<Window x:Class="MousePoint.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MousePoint"
+        AllowsTransparency="True"
+        WindowStyle="None"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize">
+    <!-- 투명 오버레이 윈도우: VirtualScreen 전체를 덮는 Canvas -->
+    <Canvas x:Name="OverlayCanvas"
+            Background="Transparent"
+            IsHitTestVisible="False" />
+</Window>
