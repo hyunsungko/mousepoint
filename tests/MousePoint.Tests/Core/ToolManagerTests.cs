@@ -95,14 +95,19 @@ public class ToolManagerTests
     }
 
     [Fact]
-    public void CyclePreset_레이저모드에서_무시()
+    public void CyclePreset_레이저모드에서_레이저색상순환()
     {
         _manager.SetMode(ToolMode.Laser);
 
-        _manager.CyclePreset();
-        _manager.CyclePreset();
+        Assert.Equal(0, _manager.LaserColorIndex);
 
-        // 색상 인덱스가 변하지 않음
+        _manager.CyclePreset(); // → 1
+        Assert.Equal(1, _manager.LaserColorIndex);
+
+        _manager.CyclePreset(); // → 2
+        Assert.Equal(2, _manager.LaserColorIndex);
+
+        // 형광펜 색상은 변하지 않음
         Assert.Equal(0, _manager.ColorIndex);
     }
 
@@ -141,15 +146,24 @@ public class ToolManagerTests
     }
 
     [Fact]
-    public void CyclePreset_레이저모드에서_이벤트미발생()
+    public void CyclePreset_레이저모드에서_LaserPresetChanged이벤트발생()
     {
         _manager.SetMode(ToolMode.Laser);
-        bool fired = false;
-        _manager.PresetChanged += (_, _) => fired = true;
+        bool presetFired = false;
+        bool laserFired = false;
+        int lastLaserIndex = -1;
+        _manager.PresetChanged += (_, _) => presetFired = true;
+        _manager.LaserPresetChanged += (idx) =>
+        {
+            laserFired = true;
+            lastLaserIndex = idx;
+        };
 
         _manager.CyclePreset();
 
-        Assert.False(fired);
+        Assert.False(presetFired);
+        Assert.True(laserFired);
+        Assert.Equal(1, lastLaserIndex);
     }
 
     // --- SetColorIndex / SetThicknessIndex ---
@@ -273,5 +287,241 @@ public class ToolManagerTests
         _manager.CyclePreset();
 
         Assert.Equal(2, _manager.ThicknessIndex);
+    }
+
+    // --- CycleThickness ---
+
+    [Fact]
+    public void CycleThickness_형광펜모드에서_위로순환()
+    {
+        _manager.SetMode(ToolMode.Highlighter);
+
+        Assert.Equal(0, _manager.ThicknessIndex);
+
+        _manager.CycleThickness(up: true); // → 1
+        Assert.Equal(1, _manager.ThicknessIndex);
+
+        _manager.CycleThickness(up: true); // → 2
+        Assert.Equal(2, _manager.ThicknessIndex);
+    }
+
+    [Fact]
+    public void CycleThickness_위로_랩어라운드()
+    {
+        _manager.SetMode(ToolMode.Highlighter);
+
+        _manager.CycleThickness(up: true); // → 1
+        _manager.CycleThickness(up: true); // → 2
+        _manager.CycleThickness(up: true); // → 0 (순환)
+
+        Assert.Equal(0, _manager.ThicknessIndex);
+    }
+
+    [Fact]
+    public void CycleThickness_아래로순환()
+    {
+        _manager.SetMode(ToolMode.Highlighter);
+        _manager.SetThicknessIndex(2);
+
+        _manager.CycleThickness(up: false); // → 1
+        Assert.Equal(1, _manager.ThicknessIndex);
+
+        _manager.CycleThickness(up: false); // → 0
+        Assert.Equal(0, _manager.ThicknessIndex);
+    }
+
+    [Fact]
+    public void CycleThickness_아래로_랩어라운드()
+    {
+        _manager.SetMode(ToolMode.Highlighter);
+
+        _manager.CycleThickness(up: false); // 0 → 2 (순환)
+
+        Assert.Equal(2, _manager.ThicknessIndex);
+    }
+
+    [Fact]
+    public void CycleThickness_레이저모드에서_무시()
+    {
+        _manager.SetMode(ToolMode.Laser);
+
+        _manager.CycleThickness(up: true);
+        _manager.CycleThickness(up: true);
+
+        Assert.Equal(0, _manager.ThicknessIndex);
+    }
+
+    [Fact]
+    public void CycleThickness_비활성모드에서_무시()
+    {
+        _manager.CycleThickness(up: true);
+
+        Assert.Equal(0, _manager.ThicknessIndex);
+    }
+
+    [Fact]
+    public void CycleThickness_이벤트발생()
+    {
+        _manager.SetMode(ToolMode.Highlighter);
+        int firedCount = 0;
+        int lastThickness = -1;
+        _manager.PresetChanged += (_, t) =>
+        {
+            firedCount++;
+            lastThickness = t;
+        };
+
+        _manager.CycleThickness(up: true); // → 1
+
+        Assert.Equal(1, firedCount);
+        Assert.Equal(1, lastThickness);
+    }
+
+    [Fact]
+    public void CycleThickness_레이저모드에서_이벤트미발생()
+    {
+        _manager.SetMode(ToolMode.Laser);
+        bool fired = false;
+        _manager.PresetChanged += (_, _) => fired = true;
+
+        _manager.CycleThickness(up: true);
+
+        Assert.False(fired);
+    }
+
+    [Fact]
+    public void CycleThickness_색상인덱스_불변()
+    {
+        _manager.SetMode(ToolMode.Highlighter);
+        _manager.SetColorIndex(2);
+
+        _manager.CycleThickness(up: true);
+
+        Assert.Equal(2, _manager.ColorIndex);
+    }
+
+    // --- 레이저 색상 순환 ---
+
+    [Fact]
+    public void CyclePreset_레이저모드에서_전체순환()
+    {
+        _manager.SetMode(ToolMode.Laser);
+
+        for (int i = 0; i < ColorPresets.LaserColorCount; i++)
+        {
+            Assert.Equal(i, _manager.LaserColorIndex);
+            _manager.CyclePreset();
+        }
+        // 랩어라운드
+        Assert.Equal(0, _manager.LaserColorIndex);
+    }
+
+    [Fact]
+    public void CyclePreset_비활성모드에서_레이저색상_무시()
+    {
+        _manager.CyclePreset();
+        _manager.CyclePreset();
+
+        Assert.Equal(0, _manager.LaserColorIndex);
+    }
+
+    [Fact]
+    public void CyclePreset_형광펜모드에서_레이저색상_불변()
+    {
+        _manager.SetMode(ToolMode.Laser);
+        _manager.CyclePreset(); // laser → 1
+        Assert.Equal(1, _manager.LaserColorIndex);
+
+        _manager.SetMode(ToolMode.Highlighter);
+        _manager.CyclePreset(); // highlighter → 1
+        _manager.CyclePreset(); // highlighter → 2
+
+        // 레이저 색상은 변하지 않음
+        Assert.Equal(1, _manager.LaserColorIndex);
+    }
+
+    [Fact]
+    public void CyclePreset_레이저_형광펜_독립순환()
+    {
+        _manager.SetMode(ToolMode.Laser);
+        _manager.CyclePreset(); // laser → 1
+        _manager.CyclePreset(); // laser → 2
+
+        _manager.SetMode(ToolMode.Highlighter);
+        _manager.CyclePreset(); // highlighter → 1
+
+        Assert.Equal(2, _manager.LaserColorIndex);
+        Assert.Equal(1, _manager.ColorIndex);
+    }
+
+    // --- SetLaserColorIndex ---
+
+    [Fact]
+    public void SetLaserColorIndex_유효값()
+    {
+        _manager.SetLaserColorIndex(2);
+        Assert.Equal(2, _manager.LaserColorIndex);
+    }
+
+    [Fact]
+    public void SetLaserColorIndex_범위초과시_순환()
+    {
+        _manager.SetLaserColorIndex(5);
+        Assert.Equal(5 % ColorPresets.LaserColorCount, _manager.LaserColorIndex);
+    }
+
+    [Fact]
+    public void SetLaserColorIndex_음수시_예외()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => _manager.SetLaserColorIndex(-1));
+    }
+
+    [Fact]
+    public void SetLaserColorIndex_이벤트발생()
+    {
+        int lastIndex = -1;
+        _manager.LaserPresetChanged += (idx) => lastIndex = idx;
+
+        _manager.SetLaserColorIndex(2);
+
+        Assert.Equal(2, lastIndex);
+    }
+
+    [Fact]
+    public void SetLaserColorIndex_PresetChanged_미발생()
+    {
+        bool fired = false;
+        _manager.PresetChanged += (_, _) => fired = true;
+
+        _manager.SetLaserColorIndex(2);
+
+        Assert.False(fired);
+    }
+
+    // --- GetCurrentLaserPreset ---
+
+    [Fact]
+    public void GetCurrentLaserPreset_초기값()
+    {
+        var preset = _manager.GetCurrentLaserPreset();
+        Assert.Equal("빨강", preset.Name);
+    }
+
+    [Fact]
+    public void GetCurrentLaserPreset_순환후()
+    {
+        _manager.SetMode(ToolMode.Laser);
+        _manager.CyclePreset(); // → 1 (초록)
+
+        var preset = _manager.GetCurrentLaserPreset();
+        Assert.Equal("초록", preset.Name);
+    }
+
+    // --- 초기 레이저 색상 인덱스 ---
+
+    [Fact]
+    public void 초기상태_레이저색상인덱스_0()
+    {
+        Assert.Equal(0, _manager.LaserColorIndex);
     }
 }

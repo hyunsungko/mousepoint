@@ -102,6 +102,7 @@ public partial class MainWindow : Window
         _mouseHook.LeftButtonDown += OnLeftButtonDown;
         _mouseHook.LeftButtonUp += OnLeftButtonUp;
         _mouseHook.XButtonDown += OnXButtonDown;
+        _mouseHook.MouseWheel += OnMouseWheel;
 
         // 페이드 아웃 매니저
         _fadeOutManager = new FadeOutManager();
@@ -113,6 +114,7 @@ public partial class MainWindow : Window
 
         // 프리셋 변경 시 형광펜 색상/굵기 반영
         _toolManager.PresetChanged += OnPresetChanged;
+        _toolManager.LaserPresetChanged += OnLaserPresetChanged;
 
         // 모드 인디케이터
         _modeIndicator = new ModeIndicator();
@@ -253,6 +255,14 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnMouseWheel(int delta)
+    {
+        if (_appState.CurrentMode == ToolMode.Highlighter)
+        {
+            _toolManager.CycleThickness(delta > 0);
+        }
+    }
+
     // ──────────────────────── 키보드 이벤트 라우팅 ────────────────────────
 
     private void OnF9Pressed()
@@ -297,7 +307,8 @@ public partial class MainWindow : Window
 
         // 모드 인디케이터 표시 (커서 근처, DPI 보정)
         var (indicatorX, indicatorY) = ScreenToCanvas(_lastMouseX, _lastMouseY);
-        _modeIndicator.Show(OverlayCanvas, newMode, _toolManager.ColorIndex, indicatorX, indicatorY);
+        _modeIndicator.Show(OverlayCanvas, newMode, _toolManager.ColorIndex, indicatorX, indicatorY,
+            _toolManager.ThicknessIndex, _toolManager.LaserColorIndex);
 
         // 트레이 아이콘 상태 업데이트
         _trayIconManager.UpdateState(newMode);
@@ -319,7 +330,25 @@ public partial class MainWindow : Window
         if (_appState.CurrentMode == ToolMode.Highlighter)
         {
             var (px, py) = ScreenToCanvas(_lastMouseX, _lastMouseY);
-            _modeIndicator.Show(OverlayCanvas, ToolMode.Highlighter, colorIndex, px, py);
+            _modeIndicator.Show(OverlayCanvas, ToolMode.Highlighter, colorIndex, px, py, thicknessIndex);
+        }
+    }
+
+    /// <summary>
+    /// 레이저 프리셋 변경 시 레이저 색상을 렌더러에 반영한다.
+    /// </summary>
+    private void OnLaserPresetChanged(int laserColorIndex)
+    {
+        var mainColor = ColorPresets.GetLaserColor(laserColorIndex);
+        var glowColor = ColorPresets.GetLaserGlowColor(laserColorIndex);
+        _laserRenderer.SetColor(mainColor, glowColor);
+
+        // 레이저 색상 변경 인디케이터 표시
+        if (_appState.CurrentMode == ToolMode.Laser)
+        {
+            var (px, py) = ScreenToCanvas(_lastMouseX, _lastMouseY);
+            _modeIndicator.Show(OverlayCanvas, ToolMode.Laser, _toolManager.ColorIndex, px, py,
+                _toolManager.ThicknessIndex, laserColorIndex);
         }
     }
 
@@ -330,6 +359,8 @@ public partial class MainWindow : Window
         // 이벤트 구독 해제
         _appState.ModeChanged -= OnModeChanged;
         _toolManager.PresetChanged -= OnPresetChanged;
+        _toolManager.LaserPresetChanged -= OnLaserPresetChanged;
+        _mouseHook.MouseWheel -= OnMouseWheel;
 
         // 렌더러 정리
         _laserRenderer?.Dispose();

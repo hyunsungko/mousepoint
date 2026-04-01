@@ -31,7 +31,8 @@ public sealed class ModeIndicator
     /// <param name="colorIndex">형광펜 색상 인덱스.</param>
     /// <param name="screenX">스크린 X 좌표.</param>
     /// <param name="screenY">스크린 Y 좌표.</param>
-    public void Show(Canvas canvas, ToolMode mode, int colorIndex, double screenX, double screenY)
+    public void Show(Canvas canvas, ToolMode mode, int colorIndex, double screenX, double screenY,
+        int thicknessIndex = 0, int laserColorIndex = 0)
     {
         // 기존 인디케이터가 있으면 제거
         RemoveCurrent();
@@ -39,8 +40,8 @@ public sealed class ModeIndicator
         // 표시할 텍스트 + 색상 결정
         var (text, indicatorColor) = mode switch
         {
-            ToolMode.Laser => ("🔴 레이저", ColorPresets.LaserColor),
-            ToolMode.Highlighter => GetHighlighterLabel(colorIndex),
+            ToolMode.Laser => GetLaserLabel(laserColorIndex),
+            ToolMode.Highlighter => GetHighlighterLabel(colorIndex, thicknessIndex),
             ToolMode.Inactive => ("⏸ 비활성", Color.FromRgb(128, 128, 128)),
             _ => ("⏸ 비활성", Color.FromRgb(128, 128, 128))
         };
@@ -106,11 +107,26 @@ public sealed class ModeIndicator
         _timer.Start();
     }
 
-    /// <summary>형광펜 색상에 따른 라벨과 색상을 반환한다.</summary>
-    private static (string text, Color color) GetHighlighterLabel(int colorIndex)
+    /// <summary>레이저 색상에 따른 라벨과 색상을 반환한다.</summary>
+    private static (string text, Color color) GetLaserLabel(int laserColorIndex)
+    {
+        var preset = ColorPresets.GetLaserPreset(laserColorIndex);
+        string emoji = (laserColorIndex % ColorPresets.LaserColorCount) switch
+        {
+            0 => "🔴",  // 빨강
+            1 => "🟢",  // 초록
+            2 => "🔵",  // 파랑
+            3 => "🟡",  // 노랑
+            _ => "🔴"
+        };
+
+        return ($"{emoji} 레이저 ({preset.Name})", preset.MainColor);
+    }
+
+    /// <summary>형광펜 색상+굵기에 따른 라벨과 색상을 반환한다.</summary>
+    private static (string text, Color color) GetHighlighterLabel(int colorIndex, int thicknessIndex = 0)
     {
         var preset = ColorPresets.GetHighlighterPreset(colorIndex);
-        // 색상별 이모지 매핑
         string emoji = (colorIndex % ColorPresets.HighlighterColorCount) switch
         {
             0 => "🔴",  // 빨강
@@ -120,7 +136,15 @@ public sealed class ModeIndicator
             _ => "🟡"
         };
 
-        return ($"{emoji} 형광펜 ({preset.Name})", preset.Color);
+        string thicknessLabel = (thicknessIndex % ColorPresets.ThicknessCount) switch
+        {
+            0 => "가늘게",
+            1 => "보통",
+            2 => "굵게",
+            _ => "보통"
+        };
+
+        return ($"{emoji} 형광펜 ({preset.Name}·{thicknessLabel})", preset.Color);
     }
 
     /// <summary>현재 표시 중인 인디케이터를 Canvas에서 제거한다.</summary>

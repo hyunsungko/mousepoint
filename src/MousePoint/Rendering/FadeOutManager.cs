@@ -10,6 +10,7 @@ namespace MousePoint.Rendering;
 public sealed class FadeOutManager : IDisposable
 {
     private const double FadeDurationSeconds = 1.0;
+    private const int MaxConcurrent = 6;
 
     private readonly record struct Entry(AnnotationElement Element, Canvas Canvas);
 
@@ -32,6 +33,27 @@ public sealed class FadeOutManager : IDisposable
         ArgumentNullException.ThrowIfNull(canvas);
 
         _entries.Add(new Entry(element, canvas));
+
+        // 동시 표시 제한 초과 시 가장 오래된 항목 즉시 제거
+        while (_entries.Count > MaxConcurrent)
+        {
+            int oldestIndex = 0;
+            var oldestTime = _entries[0].Element.CreatedAt;
+            for (int i = 1; i < _entries.Count - 1; i++) // 방금 추가한 것은 제외
+            {
+                if (_entries[i].Element.CreatedAt < oldestTime)
+                {
+                    oldestTime = _entries[i].Element.CreatedAt;
+                    oldestIndex = i;
+                }
+            }
+
+            var oldest = _entries[oldestIndex];
+            oldest.Element.UpdateOpacity(0);
+            oldest.Canvas.Children.Remove(oldest.Element.Visual);
+            _entries[oldestIndex] = _entries[^1];
+            _entries.RemoveAt(_entries.Count - 1);
+        }
 
         if (!_timer.IsEnabled)
             _timer.Start();
@@ -61,6 +83,9 @@ public sealed class FadeOutManager : IDisposable
         }
 
         var now = DateTime.UtcNow;
+
+        // 만료 항목을 먼저 수집, 루프 종료 후 일괄 제거
+        List<Entry>? expired = null;
         int i = 0;
 
         while (i < _entries.Count)
@@ -80,9 +105,9 @@ public sealed class FadeOutManager : IDisposable
 
             if (newOpacity <= 0.0)
             {
-                // 만료: Canvas에서 제거 + swap-remove (O(1))
+                // 만료: swap-remove로 리스트에서 제거, Canvas 제거는 후처리
                 entry.Element.UpdateOpacity(0);
-                entry.Canvas.Children.Remove(entry.Element.Visual);
+                (expired ??= []).Add(entry);
                 _entries[i] = _entries[^1];
                 _entries.RemoveAt(_entries.Count - 1);
                 // i 증가 안 함 — swap된 요소 처리 필요
@@ -92,6 +117,13 @@ public sealed class FadeOutManager : IDisposable
                 entry.Element.UpdateOpacity(newOpacity);
                 i++;
             }
+        }
+
+        // 일괄 Canvas.Children.Remove()
+        if (expired is not null)
+        {
+            foreach (var entry in expired)
+                entry.Canvas.Children.Remove(entry.Element.Visual);
         }
     }
 }

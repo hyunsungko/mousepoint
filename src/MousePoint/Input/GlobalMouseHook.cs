@@ -22,6 +22,7 @@ internal sealed class GlobalMouseHook : IDisposable
     public event Action<int, int>? LeftButtonUp;          // x, y
     public event Action<int>? XButtonDown;                // button number (1 or 2)
     public event Action<int>? XButtonUp;                  // button number (1 or 2)
+    public event Action<int>? MouseWheel;                 // wheel delta (positive=up, negative=down)
     public event Action? HookLost;                        // watchdog 감지 시
 
     public bool IsHooked => _hookId != IntPtr.Zero;
@@ -139,6 +140,11 @@ internal sealed class GlobalMouseHook : IDisposable
                     case NativeMethods.WM_XBUTTONUP:
                         int xBtnUp = (int)((hookStruct.mouseData >> 16) & 0xFFFF);
                         _dispatcher.BeginInvoke(() => XButtonUp?.Invoke(xBtnUp));
+                        break;
+
+                    case NativeMethods.WM_MOUSEWHEEL:
+                        short wheelDelta = (short)((hookStruct.mouseData >> 16) & 0xFFFF);
+                        _dispatcher.BeginInvoke(() => MouseWheel?.Invoke((int)wheelDelta));
                         break;
                 }
             }

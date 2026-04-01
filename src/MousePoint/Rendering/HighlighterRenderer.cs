@@ -111,14 +111,43 @@ public sealed class HighlighterRenderer
 
     public void OnLeftButtonUp(double canvasX, double canvasY)
     {
-        if (!_isDragging || _currentPath is null) return;
+        if (!_isDragging || _currentPath is null || _currentFigure is null) return;
 
-        _currentFigure?.Segments.Add(new LineSegment(new Point(canvasX, canvasY), true));
+        _currentFigure.Segments.Add(new LineSegment(new Point(canvasX, canvasY), true));
 
         // ActiveCanvas → OverlayCanvas로 이동 (레이어 분리)
         _activeCanvas.Children.Remove(_currentPath);
         _currentPath.CacheMode = new BitmapCache();
         _completedCanvas.Children.Add(_currentPath);
+
+        // Douglas-Peucker로 스트로크 간소화
+        var points = new List<Point>(_currentFigure.Segments.Count + 1)
+        {
+            _currentFigure.StartPoint
+        };
+        foreach (var segment in _currentFigure.Segments)
+        {
+            if (segment is LineSegment line)
+                points.Add(line.Point);
+        }
+
+        var simplified = DouglasPeucker.Simplify(points, 2.0);
+
+        if (simplified.Count >= 2 && simplified.Count < points.Count)
+        {
+            var newFigure = new PathFigure
+            {
+                StartPoint = simplified[0],
+                IsClosed = false,
+                IsFilled = false
+            };
+            for (int i = 1; i < simplified.Count; i++)
+                newFigure.Segments.Add(new LineSegment(simplified[i], true));
+
+            var newGeometry = new PathGeometry();
+            newGeometry.Figures.Add(newFigure);
+            _currentPath.Data = newGeometry;
+        }
 
         var annotation = new AnnotationElement(_currentPath, StrokeLifetime);
         _fadeOutManager.Register(annotation, _completedCanvas);
