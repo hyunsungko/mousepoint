@@ -64,10 +64,18 @@ public partial class MainWindow : Window
         _dpiScaleX = dpiScale.M11;
         _dpiScaleY = dpiScale.M22;
 
-        // WS_EX_TRANSPARENT: 기본적으로 클릭 통과
+        // DWM 기반 투명도: AllowsTransparency 대신 하드웨어 가속 유지
+        hwndSource.CompositionTarget.BackgroundColor = System.Windows.Media.Color.FromArgb(0, 0, 0, 0);
+        var margins = new NativeMethods.MARGINS
+        {
+            cxLeftWidth = -1, cxRightWidth = -1,
+            cyTopHeight = -1, cyBottomHeight = -1
+        };
+        NativeMethods.DwmExtendFrameIntoClientArea(hwnd, ref margins);
+
+        // WS_EX_TOOLWINDOW: Alt+Tab에서 숨김 (클릭 통과는 Hide/Show로 제어)
         int exStyle = (int)NativeMethods.GetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE);
-        exStyle |= NativeMethods.WS_EX_TRANSPARENT;
-        exStyle |= NativeMethods.WS_EX_TOOLWINDOW; // Alt+Tab에서 숨김
+        exStyle |= NativeMethods.WS_EX_TOOLWINDOW;
         NativeMethods.SetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE, (IntPtr)exStyle);
 
         // 키보드 훅 (RegisterHotKey는 Window Handle이 필요)
@@ -76,6 +84,7 @@ public partial class MainWindow : Window
         _keyboardHook.CtrlShift1Pressed += OnCtrlShift1;
         _keyboardHook.CtrlShift2Pressed += OnCtrlShift2;
         _keyboardHook.CtrlShift3Pressed += OnCtrlShift3;
+        _keyboardHook.CtrlShiftQPressed += OnCtrlShiftQ;
     }
 
     /// <summary>
@@ -141,46 +150,27 @@ public partial class MainWindow : Window
         _onboardingOverlay.ShowIfFirstRun(OverlayCanvas, () => { });
     }
 
-    // ──────────────────────── WS_EX_TRANSPARENT 토글 ────────────────────────
+    // ──────────────────────── 오버레이 표시/숨김 ────────────────────────
 
     /// <summary>
-    /// 클릭 통과(투명) 여부를 설정한다.
-    /// true: 마우스 클릭이 아래 윈도우로 통과
-    /// false: 이 윈도우가 마우스 입력을 받음 (형광펜 드래그용)
+    /// DWM 모드에서는 클릭 통과가 안 되므로, Inactive일 때 윈도우를 숨겨서
+    /// 사용자가 데스크톱을 자유롭게 사용할 수 있게 한다.
     /// </summary>
-    private static readonly System.Windows.Media.Brush TransparentBg =
-        System.Windows.Media.Brushes.Transparent;
-    private static readonly System.Windows.Media.Brush OpaqueHitTestBg =
-        new System.Windows.Media.SolidColorBrush(
-            System.Windows.Media.Color.FromArgb(1, 0, 0, 0)); // alpha 1/255 — 눈에 안 보이지만 hit test 통과
-
-    static MainWindow()
+    private void SetOverlayVisible(bool visible)
     {
-        OpaqueHitTestBg.Freeze();
-    }
-
-    private void SetClickThrough(bool transparent)
-    {
-        var hwndSource = PresentationSource.FromVisual(this) as HwndSource;
-        if (hwndSource == null) return;
-
-        IntPtr hwnd = hwndSource.Handle;
-        int exStyle = (int)NativeMethods.GetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE);
-
-        if (transparent)
+        if (visible)
         {
-            exStyle |= NativeMethods.WS_EX_TRANSPARENT;
-            ActiveCanvas.Background = TransparentBg;
-            ActiveCanvas.IsHitTestVisible = false;
+            Show();
+            // VirtualScreen 위치 재설정 (모니터 변경 대응)
+            Left = SystemParameters.VirtualScreenLeft;
+            Top = SystemParameters.VirtualScreenTop;
+            Width = SystemParameters.VirtualScreenWidth;
+            Height = SystemParameters.VirtualScreenHeight;
         }
         else
         {
-            exStyle &= ~NativeMethods.WS_EX_TRANSPARENT;
-            ActiveCanvas.Background = OpaqueHitTestBg;
-            ActiveCanvas.IsHitTestVisible = true;
+            Hide();
         }
-
-        NativeMethods.SetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE, (IntPtr)exStyle);
     }
 
     // ──────────────────────── 마우스 이벤트 라우팅 ────────────────────────
@@ -286,6 +276,12 @@ public partial class MainWindow : Window
         _appState.SetMode(ToolMode.Inactive);
     }
 
+    private void OnCtrlShiftQ()
+    {
+        _trayIconManager?.Dispose();
+        Application.Current.Shutdown();
+    }
+
     // ──────────────────────── 모드 변경 처리 ────────────────────────
 
     /// <summary>
@@ -302,13 +298,16 @@ public partial class MainWindow : Window
             _highlighterRenderer.CancelCurrentStroke();
         }
 
-        // 클릭 통과: 형광펜 모드에서는 해제, 나머지는 클릭 통과
-        SetClickThrough(newMode != ToolMode.Highlighter);
+        // Inactive면 오버레이 숨김 (데스크톱 자유 사용), 활성이면 표시
+        SetOverlayVisible(newMode != ToolMode.Inactive);
 
-        // 모드 인디케이터 표시 (커서 근처, DPI 보정)
-        var (indicatorX, indicatorY) = ScreenToCanvas(_lastMouseX, _lastMouseY);
-        _modeIndicator.Show(OverlayCanvas, newMode, _toolManager.ColorIndex, indicatorX, indicatorY,
-            _toolManager.ThicknessIndex, _toolManager.LaserColorIndex);
+        // 모드 인디케이터 표시 (오버레이가 보일 때만)
+        if (newMode != ToolMode.Inactive)
+        {
+            var (indicatorX, indicatorY) = ScreenToCanvas(_lastMouseX, _lastMouseY);
+            _modeIndicator.Show(OverlayCanvas, newMode, _toolManager.ColorIndex, indicatorX, indicatorY,
+                _toolManager.ThicknessIndex, _toolManager.LaserColorIndex);
+        }
 
         // 트레이 아이콘 상태 업데이트
         _trayIconManager.UpdateState(newMode);

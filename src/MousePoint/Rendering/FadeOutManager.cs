@@ -10,7 +10,7 @@ namespace MousePoint.Rendering;
 public sealed class FadeOutManager : IDisposable
 {
     private const double FadeDurationSeconds = 1.0;
-    private const int MaxConcurrent = 6;
+    private const int MaxConcurrent = 12;
 
     private readonly record struct Entry(AnnotationElement Element, Canvas Canvas);
 
@@ -61,6 +61,16 @@ public sealed class FadeOutManager : IDisposable
 
     public void Start() { } // 호환성 유지 — timer는 Register 시 자동 시작
     public void Stop() => _timer.Stop();
+
+    /// <summary>활성 드래그 중 타이머를 일시정지하여 Dispatcher 경합을 줄인다.</summary>
+    public void Pause() => _timer.Stop();
+
+    /// <summary>드래그 완료 후 타이머를 재개한다.</summary>
+    public void Resume()
+    {
+        if (_entries.Count > 0 && !_timer.IsEnabled)
+            _timer.Start();
+    }
 
     public void Dispose()
     {
