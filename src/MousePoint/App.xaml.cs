@@ -24,7 +24,8 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _mutex?.ReleaseMutex();
+        try { _mutex?.ReleaseMutex(); }
+        catch (ApplicationException) { /* Mutex was not owned — safe to ignore */ }
         _mutex?.Dispose();
         base.OnExit(e);
     }

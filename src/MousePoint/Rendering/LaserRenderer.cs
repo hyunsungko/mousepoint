@@ -10,9 +10,9 @@ namespace MousePoint.Rendering;
 /// <summary>
 /// 레이저 포인터 렌더러.
 /// 링 버퍼에 최근 N개 마우스 좌표를 저장하고, CompositionTarget.Rendering 프레임마다
-/// Canvas를 갱신하여 fade-out trail과 발광 원을 그린다.
+/// 자신이 관리하는 요소만 갱신하여 fade-out trail과 발광 원을 그린다.
 /// </summary>
-public sealed class LaserRenderer
+public sealed class LaserRenderer : IDisposable
 {
     /// <summary>링 버퍼에 보관할 최대 포인트 수.</summary>
     private const int DefaultBufferSize = 60;
@@ -20,35 +20,58 @@ public sealed class LaserRenderer
     private readonly Canvas _canvas;
 
     // --- 링 버퍼 ---
-    private readonly (double x, double y, DateTime timestamp)[] _buffer;
+    private readonly (double x, double y)[] _buffer;
     private int _head;   // 다음 쓰기 위치
     private int _count;  // 현재 저장된 포인트 수
 
     // --- 캐시된 WPF 요소 (매 프레임 재생성 비용 절감) ---
     private readonly Ellipse _pointer;
 
+    // --- 객체 풀: Line + Brush를 재사용하여 GC 압박 최소화 ---
+    private readonly Line[] _trailPool;
+    private int _visibleTrailCount;
+    private bool _pointerOnCanvas;
+
     private bool _active;
+    private bool _disposed;
 
     public LaserRenderer(Canvas canvas, int bufferSize = DefaultBufferSize)
     {
         _canvas = canvas ?? throw new ArgumentNullException(nameof(canvas));
-        _buffer = new (double, double, DateTime)[bufferSize];
+        _buffer = new (double, double)[bufferSize];
 
         // 포인터 원: 빨간색 + DropShadow 발광 효과
+        var pointerBrush = new SolidColorBrush(ColorPresets.LaserColor);
+        pointerBrush.Freeze();
+
         _pointer = new Ellipse
         {
-            Width = ColorPresets.LaserRadius * 2,   // 반지름 6px → 지름 12px
+            Width = ColorPresets.LaserRadius * 2,
             Height = ColorPresets.LaserRadius * 2,
-            Fill = new SolidColorBrush(ColorPresets.LaserColor),
+            Fill = pointerBrush,
             Effect = new DropShadowEffect
             {
                 Color = ColorPresets.LaserColor,
                 BlurRadius = 15,
-                ShadowDepth = 0,       // 그림자 없이 발광만
+                ShadowDepth = 0,
                 Opacity = 1.0
             },
             IsHitTestVisible = false
         };
+
+        // Line 풀 사전 생성 (bufferSize - 1개, 인접 포인트 사이 선분)
+        _trailPool = new Line[Math.Max(1, bufferSize - 1)];
+        for (int i = 0; i < _trailPool.Length; i++)
+        {
+            _trailPool[i] = new Line
+            {
+                Stroke = new SolidColorBrush(ColorPresets.LaserColor),
+                StrokeThickness = ColorPresets.LaserTrailWidth,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                IsHitTestVisible = false
+            };
+        }
     }
 
     // ─────────────────────────── 좌표 변환 ───────────────────────────
@@ -70,7 +93,7 @@ public sealed class LaserRenderer
         if (!_active) return;
 
         var (cx, cy) = ToCanvas(screenX, screenY);
-        _buffer[_head] = (cx, cy, DateTime.UtcNow);
+        _buffer[_head] = (cx, cy);
         _head = (_head + 1) % _buffer.Length;
         if (_count < _buffer.Length) _count++;
     }
@@ -94,48 +117,52 @@ public sealed class LaserRenderer
 
     // ─────────────────────────── 프레임 렌더링 ───────────────────────────
 
-    /// <summary>매 vsync 프레임마다 호출. Canvas를 비우고 trail + 포인터를 다시 그린다.</summary>
+    /// <summary>
+    /// 매 vsync 프레임마다 호출. 자신이 관리하는 요소만 갱신한다.
+    /// 다른 렌더러(HighlighterRenderer 등)의 Canvas 요소를 건드리지 않는다.
+    /// </summary>
     private void OnRendering(object? sender, EventArgs e)
     {
+        // 이전 프레임에서 보이던 trail 라인을 Canvas에서 제거
+        for (int i = 0; i < _visibleTrailCount; i++)
+            _canvas.Children.Remove(_trailPool[i]);
+        _visibleTrailCount = 0;
+
+        if (_pointerOnCanvas)
+        {
+            _canvas.Children.Remove(_pointer);
+            _pointerOnCanvas = false;
+        }
+
         if (_count == 0) return;
-
-        _canvas.Children.Clear();
-
-        var now = DateTime.UtcNow;
 
         // 링 버퍼에서 오래된 순서대로 읽기
         int startIdx = (_count < _buffer.Length)
             ? 0
-            : _head; // 버퍼가 꽉 찼으면 head가 가장 오래된 위치
+            : _head;
 
-        // 포인트를 시간순 배열로 복사 (오래된 → 최신)
         int total = _count;
         double prevX = 0, prevY = 0;
         bool hasPrev = false;
+        int lineIdx = 0;
 
         for (int i = 0; i < total; i++)
         {
             int idx = (startIdx + i) % _buffer.Length;
-            var (px, py, ts) = _buffer[idx];
+            var (px, py) = _buffer[idx];
 
-            // 선형 보간: 오래된 포인트(i=0)일수록 투명, 최신(i=total-1)일수록 불투명
             double opacity = (total == 1) ? 1.0 : (double)i / (total - 1);
 
-            if (hasPrev)
+            if (hasPrev && lineIdx < _trailPool.Length)
             {
-                var line = new Line
-                {
-                    X1 = prevX,
-                    Y1 = prevY,
-                    X2 = px,
-                    Y2 = py,
-                    Stroke = new SolidColorBrush(ColorPresets.LaserColor) { Opacity = opacity },
-                    StrokeThickness = ColorPresets.LaserTrailWidth,
-                    StrokeStartLineCap = PenLineCap.Round,
-                    StrokeEndLineCap = PenLineCap.Round,
-                    IsHitTestVisible = false
-                };
+                var line = _trailPool[lineIdx];
+                line.X1 = prevX;
+                line.Y1 = prevY;
+                line.X2 = px;
+                line.Y2 = py;
+                ((SolidColorBrush)line.Stroke).Opacity = opacity;
                 _canvas.Children.Add(line);
+                lineIdx++;
             }
 
             prevX = px;
@@ -143,23 +170,42 @@ public sealed class LaserRenderer
             hasPrev = true;
         }
 
+        _visibleTrailCount = lineIdx;
+
         // 최신 위치에 포인터 원 배치
         if (total > 0)
         {
             int latestIdx = (_head - 1 + _buffer.Length) % _buffer.Length;
-            var (lx, ly, _) = _buffer[latestIdx];
+            var (lx, ly) = _buffer[latestIdx];
 
             Canvas.SetLeft(_pointer, lx - ColorPresets.LaserRadius);
             Canvas.SetTop(_pointer, ly - ColorPresets.LaserRadius);
             _canvas.Children.Add(_pointer);
+            _pointerOnCanvas = true;
         }
     }
 
-    /// <summary>Canvas를 비우고 링 버퍼를 초기화한다.</summary>
+    /// <summary>자신이 관리하는 요소만 Canvas에서 제거하고 링 버퍼를 초기화한다.</summary>
     private void ClearCanvas()
     {
-        _canvas.Children.Clear();
+        for (int i = 0; i < _visibleTrailCount; i++)
+            _canvas.Children.Remove(_trailPool[i]);
+        _visibleTrailCount = 0;
+
+        if (_pointerOnCanvas)
+        {
+            _canvas.Children.Remove(_pointer);
+            _pointerOnCanvas = false;
+        }
+
         _head = 0;
         _count = 0;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        SetActive(false);
     }
 }
