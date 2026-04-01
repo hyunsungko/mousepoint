@@ -46,7 +46,9 @@ internal sealed class GlobalMouseHook : IDisposable
         if (_hookId != IntPtr.Zero) return;
 
         using var curProcess = Process.GetCurrentProcess();
-        using var curModule = curProcess.MainModule!;
+        using var curModule = curProcess.MainModule;
+        if (curModule is null) return;
+
         _hookId = NativeMethods.SetWindowsHookEx(
             NativeMethods.WH_MOUSE_LL,
             _hookProc,

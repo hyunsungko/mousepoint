@@ -52,7 +52,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void OnSourceInitialized(object? sender, EventArgs e)
     {
-        var hwndSource = (HwndSource)PresentationSource.FromVisual(this);
+        if (PresentationSource.FromVisual(this) is not HwndSource hwndSource) return;
         IntPtr hwnd = hwndSource.Handle;
 
         // WS_EX_TRANSPARENT: 기본적으로 클릭 통과
@@ -275,9 +275,19 @@ public partial class MainWindow : Window
 
     private void OnClosed(object? sender, EventArgs e)
     {
-        _fadeOutManager.Stop();
+        // 이벤트 구독 해제
+        _appState.ModeChanged -= OnModeChanged;
+        _toolManager.PresetChanged -= OnPresetChanged;
+
+        // 렌더러 정리
+        _laserRenderer?.Dispose();
+        _fadeOutManager?.Dispose();
+
+        // 입력 훅 정리
         _mouseHook?.Dispose();
         _keyboardHook?.Dispose();
+
+        // UI 정리
         _trayIconManager?.Dispose();
     }
 }

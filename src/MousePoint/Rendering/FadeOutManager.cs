@@ -8,7 +8,7 @@ namespace MousePoint.Rendering;
 /// 등록된 AnnotationElement의 lifetime이 경과하면 약 1초에 걸쳐 opacity를 0으로 감소시키고,
 /// 완전히 투명해지면 Canvas에서 제거한다.
 /// </summary>
-public sealed class FadeOutManager
+public sealed class FadeOutManager : IDisposable
 {
     /// <summary>fade-out에 소요되는 시간 (초).</summary>
     private const double FadeDurationSeconds = 1.0;
@@ -18,6 +18,7 @@ public sealed class FadeOutManager
 
     private readonly List<Entry> _entries = [];
     private bool _running;
+    private bool _disposed;
 
     /// <summary>
     /// 주석 요소를 등록한다. Lifetime 경과 후 자동으로 fade-out된다.
@@ -44,6 +45,14 @@ public sealed class FadeOutManager
         if (!_running) return;
         _running = false;
         CompositionTarget.Rendering -= OnRendering;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        Stop();
+        _entries.Clear();
     }
 
     /// <summary>
