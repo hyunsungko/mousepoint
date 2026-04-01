@@ -57,11 +57,11 @@ internal static class NativeMethods
     [DllImport("kernel32.dll", SetLastError = true)]
     internal static extern IntPtr GetModuleHandle(string? lpModuleName);
 
-    [DllImport("user32.dll", SetLastError = true)]
-    internal static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+    [DllImport("user32.dll", SetLastError = true, EntryPoint = "GetWindowLongPtrW")]
+    internal static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
 
-    [DllImport("user32.dll", SetLastError = true)]
-    internal static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+    [DllImport("user32.dll", SetLastError = true, EntryPoint = "SetWindowLongPtrW")]
+    internal static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
