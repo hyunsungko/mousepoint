@@ -20,6 +20,7 @@ internal sealed class GlobalMouseHook : IDisposable
     public event Action<int, int>? MouseMoved;           // x, y (screen coords)
     public event Action<int, int>? LeftButtonDown;        // x, y
     public event Action<int, int>? LeftButtonUp;          // x, y
+    public event Action? RightButtonDown;                 // 우클릭 (앱 종료용)
     public event Action<int>? XButtonDown;                // button number (1 or 2)
     public event Action<int>? XButtonUp;                  // button number (1 or 2)
     public event Action<int>? MouseWheel;                 // wheel delta (positive=up, negative=down)
@@ -130,6 +131,10 @@ internal sealed class GlobalMouseHook : IDisposable
 
                     case NativeMethods.WM_LBUTTONUP:
                         _dispatcher.BeginInvoke(() => LeftButtonUp?.Invoke(x, y));
+                        break;
+
+                    case NativeMethods.WM_RBUTTONDOWN:
+                        _dispatcher.BeginInvoke(() => RightButtonDown?.Invoke());
                         break;
 
                     case NativeMethods.WM_XBUTTONDOWN:

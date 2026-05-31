@@ -145,7 +145,7 @@ public sealed class ModeIndicator
             _ => "보통"
         };
 
-        return ($"{emoji} 형광펜 ({preset.Name}·{thicknessLabel})", preset.Color);
+        return ($"{emoji} 형광포인터 ({preset.Name}·{thicknessLabel})", preset.Color);
     }
 
     /// <summary>네모박스 색상에 따른 라벨과 색상을 반환한다.</summary>

@@ -121,6 +121,7 @@ public partial class MainWindow : Window
         _mouseHook.MouseMoved += OnMouseMoved;
         _mouseHook.LeftButtonDown += OnLeftButtonDown;
         _mouseHook.LeftButtonUp += OnLeftButtonUp;
+        _mouseHook.RightButtonDown += OnRightButtonDown;
         _mouseHook.XButtonDown += OnXButtonDown;
         _mouseHook.MouseWheel += OnMouseWheel;
 
@@ -137,13 +138,15 @@ public partial class MainWindow : Window
         _toolManager.PresetChanged += OnPresetChanged;
         _toolManager.LaserPresetChanged += OnLaserPresetChanged;
 
+        // 형광포인터: 레이저 포인터 초기 색을 형광펜 색과 동기화
+        SyncPointerColorToHighlighter(_toolManager.ColorIndex);
+
         // 모드 인디케이터
         _modeIndicator = new ModeIndicator();
 
         // 트레이 아이콘
         _trayIconManager = new TrayIconManager(
-            onLaserSelected: () => _appState.SetMode(ToolMode.Laser),
-            onHighlighterSelected: () => _appState.SetMode(ToolMode.Highlighter),
+            onHighlightPointerSelected: () => _appState.SetMode(ToolMode.Highlighter),
             onRectangleSelected: () => _appState.SetMode(ToolMode.Rectangle),
             onExitClicked: () =>
             {
@@ -160,15 +163,15 @@ public partial class MainWindow : Window
         _onboardingOverlay = new OnboardingOverlay();
         if (_onboardingOverlay.IsFirstRun())
         {
-            // 첫 실행: 레이저 모드로 먼저 진입하여 윈도우를 활성화한 후 온보딩 표시
+            // 첫 실행: 형광포인터 모드로 먼저 진입하여 윈도우를 활성화한 후 온보딩 표시
             // DWM 모드에서는 Inactive 상태면 윈도우가 숨겨져 온보딩이 안 보임
-            _appState.SetMode(ToolMode.Laser);
+            _appState.SetMode(ToolMode.Highlighter);
             _onboardingOverlay.ShowIfFirstRun(OverlayCanvas, () => { });
         }
         else
         {
-            // 이미 사용한 적 있으면 레이저 모드로 바로 시작
-            _appState.SetMode(ToolMode.Laser);
+            // 이미 사용한 적 있으면 형광포인터 모드로 바로 시작
+            _appState.SetMode(ToolMode.Highlighter);
         }
     }
 
@@ -223,10 +226,9 @@ public partial class MainWindow : Window
 
         switch (_appState.CurrentMode)
         {
-            case ToolMode.Laser:
-                _laserRenderer.OnMouseMove(cx, cy);
-                break;
             case ToolMode.Highlighter:
+                // 형광포인터: 레이저 포인터가 커서를 따라다니고, 드래그 중이면 형광펜도 그려짐
+                _laserRenderer.OnMouseMove(cx, cy);
                 _highlighterRenderer.OnMouseMove(cx, cy);
                 break;
             case ToolMode.Rectangle:
@@ -262,6 +264,12 @@ public partial class MainWindow : Window
                 _rectangleRenderer.OnLeftButtonUp(cx, cy);
                 break;
         }
+    }
+
+    private void OnRightButtonDown()
+    {
+        // 우클릭 = ESC와 동일하게 임시 종료(비활성화).
+        OnEscPressed();
     }
 
     private void OnXButtonDown(int button)
@@ -306,7 +314,8 @@ public partial class MainWindow : Window
 
     private void OnCtrlShift1()
     {
-        _appState.SetMode(ToolMode.Laser);
+        // 형광포인터 (Ctrl+Shift+1·2 모두 형광포인터로 진입)
+        _appState.SetMode(ToolMode.Highlighter);
     }
 
     private void OnCtrlShift2()
@@ -352,8 +361,8 @@ public partial class MainWindow : Window
     /// </summary>
     private void OnModeChanged(ToolMode oldMode, ToolMode newMode)
     {
-        // 레이저 렌더러 활성/비활성 전환
-        _laserRenderer.SetActive(newMode == ToolMode.Laser);
+        // 레이저 포인터 렌더러 활성/비활성 전환 (형광포인터 모드에서 켜짐)
+        _laserRenderer.SetActive(newMode == ToolMode.Highlighter);
 
         // 형광펜/네모박스에서 다른 모드로 전환 시 진행 중인 드래그 취소
         if (oldMode == ToolMode.Highlighter && newMode != ToolMode.Highlighter)
@@ -393,6 +402,16 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
+    /// 형광포인터 모드의 레이저 포인터 색을 형광펜 색과 동일하게 맞춘다.
+    /// </summary>
+    private void SyncPointerColorToHighlighter(int colorIndex)
+    {
+        _laserRenderer.SetColor(
+            ColorPresets.GetHighlighterColor(colorIndex),
+            ColorPresets.GetHighlighterGlowColor(colorIndex));
+    }
+
+    /// <summary>
     /// 프리셋 변경 시 형광펜 색상/굵기를 렌더러에 반영한다.
     /// </summary>
     private void OnPresetChanged(int colorIndex, int thicknessIndex)
@@ -404,6 +423,9 @@ public partial class MainWindow : Window
         _highlighterRenderer.SetColor(color, opacity);
         _highlighterRenderer.SetThickness(thickness);
         _rectangleRenderer.SetColor(color, opacity);
+
+        // 형광포인터: 레이저 포인터 색도 형광펜 색과 동일하게 동기화
+        SyncPointerColorToHighlighter(colorIndex);
 
         // 색상 변경 인디케이터 표시
         if (_appState.CurrentMode == ToolMode.Highlighter)

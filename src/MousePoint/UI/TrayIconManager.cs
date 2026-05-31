@@ -11,19 +11,15 @@ namespace MousePoint.UI;
 public sealed class TrayIconManager : IDisposable
 {
     private readonly NotifyIcon _notifyIcon;
-    private readonly ToolStripMenuItem _laserMenuItem;
-    private readonly ToolStripMenuItem _highlighterMenuItem;
+    private readonly ToolStripMenuItem _highlightPointerMenuItem;
     private readonly ToolStripMenuItem _rectangleMenuItem;
     private bool _disposed;
 
-    public TrayIconManager(Action onLaserSelected, Action onHighlighterSelected,
+    public TrayIconManager(Action onHighlightPointerSelected,
         Action onRectangleSelected, Action onExitClicked)
     {
-        _laserMenuItem = new ToolStripMenuItem("레이저 포인터") { CheckOnClick = false };
-        _laserMenuItem.Click += (_, _) => onLaserSelected();
-
-        _highlighterMenuItem = new ToolStripMenuItem("형광펜") { CheckOnClick = false };
-        _highlighterMenuItem.Click += (_, _) => onHighlighterSelected();
+        _highlightPointerMenuItem = new ToolStripMenuItem("형광포인터") { CheckOnClick = false };
+        _highlightPointerMenuItem.Click += (_, _) => onHighlightPointerSelected();
 
         _rectangleMenuItem = new ToolStripMenuItem("네모박스") { CheckOnClick = false };
         _rectangleMenuItem.Click += (_, _) => onRectangleSelected();
@@ -32,8 +28,7 @@ public sealed class TrayIconManager : IDisposable
         exitItem.Click += (_, _) => onExitClicked();
 
         var contextMenu = new ContextMenuStrip();
-        contextMenu.Items.Add(_laserMenuItem);
-        contextMenu.Items.Add(_highlighterMenuItem);
+        contextMenu.Items.Add(_highlightPointerMenuItem);
         contextMenu.Items.Add(_rectangleMenuItem);
         contextMenu.Items.Add(new ToolStripSeparator());
         contextMenu.Items.Add(exitItem);
@@ -63,8 +58,7 @@ public sealed class TrayIconManager : IDisposable
     /// </summary>
     public void UpdateState(ToolMode mode)
     {
-        _laserMenuItem.Checked = mode == ToolMode.Laser;
-        _highlighterMenuItem.Checked = mode == ToolMode.Highlighter;
+        _highlightPointerMenuItem.Checked = mode == ToolMode.Highlighter;
         _rectangleMenuItem.Checked = mode == ToolMode.Rectangle;
     }
 

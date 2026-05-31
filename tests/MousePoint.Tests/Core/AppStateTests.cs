@@ -23,10 +23,10 @@ public class AppStateTests
     // --- ToggleActivation ---
 
     [Fact]
-    public void ToggleActivation_비활성에서_레이저로()
+    public void ToggleActivation_비활성에서_형광포인터로()
     {
         _state.ToggleActivation();
-        Assert.Equal(ToolMode.Laser, _state.CurrentMode);
+        Assert.Equal(ToolMode.Highlighter, _state.CurrentMode);
     }
 
     [Fact]
@@ -46,11 +46,11 @@ public class AppStateTests
     }
 
     [Fact]
-    public void ToggleActivation_순환_Inactive_Laser_Inactive()
+    public void ToggleActivation_순환_Inactive_형광포인터_Inactive()
     {
         Assert.Equal(ToolMode.Inactive, _state.CurrentMode);
         _state.ToggleActivation();
-        Assert.Equal(ToolMode.Laser, _state.CurrentMode);
+        Assert.Equal(ToolMode.Highlighter, _state.CurrentMode);
         _state.ToggleActivation();
         Assert.Equal(ToolMode.Inactive, _state.CurrentMode);
     }
@@ -58,24 +58,15 @@ public class AppStateTests
     // --- CycleTool ---
 
     [Fact]
-    public void CycleTool_비활성에서_레이저로()
+    public void CycleTool_비활성에서_형광포인터로()
     {
         _state.CycleTool();
-        Assert.Equal(ToolMode.Laser, _state.CurrentMode);
-    }
-
-    [Fact]
-    public void CycleTool_레이저에서_형광펜으로()
-    {
-        _state.CycleTool(); // → Laser
-        _state.CycleTool(); // → Highlighter
         Assert.Equal(ToolMode.Highlighter, _state.CurrentMode);
     }
 
     [Fact]
-    public void CycleTool_형광펜에서_네모박스로()
+    public void CycleTool_형광포인터에서_네모박스로()
     {
-        _state.CycleTool(); // → Laser
         _state.CycleTool(); // → Highlighter
         _state.CycleTool(); // → Rectangle
         Assert.Equal(ToolMode.Rectangle, _state.CurrentMode);
@@ -84,7 +75,6 @@ public class AppStateTests
     [Fact]
     public void CycleTool_네모박스에서_비활성으로()
     {
-        _state.CycleTool(); // → Laser
         _state.CycleTool(); // → Highlighter
         _state.CycleTool(); // → Rectangle
         _state.CycleTool(); // → Inactive
@@ -92,12 +82,9 @@ public class AppStateTests
     }
 
     [Fact]
-    public void CycleTool_전체순환_Inactive_Laser_Highlighter_Rectangle_Inactive()
+    public void CycleTool_전체순환_Inactive_형광포인터_네모박스_Inactive()
     {
         Assert.Equal(ToolMode.Inactive, _state.CurrentMode);
-
-        _state.CycleTool();
-        Assert.Equal(ToolMode.Laser, _state.CurrentMode);
 
         _state.CycleTool();
         Assert.Equal(ToolMode.Highlighter, _state.CurrentMode);
@@ -149,7 +136,7 @@ public class AppStateTests
         _state.ToggleActivation();
 
         Assert.Equal(ToolMode.Inactive, capturedOld);
-        Assert.Equal(ToolMode.Laser, capturedNew);
+        Assert.Equal(ToolMode.Highlighter, capturedNew);
     }
 
     [Fact]
@@ -158,9 +145,9 @@ public class AppStateTests
         int firedCount = 0;
         _state.ModeChanged += (_, _) => firedCount++;
 
-        _state.CycleTool(); // Inactive → Laser
-        _state.CycleTool(); // Laser → Highlighter
-        _state.CycleTool(); // Highlighter → Inactive
+        _state.CycleTool(); // Inactive → Highlighter
+        _state.CycleTool(); // Highlighter → Rectangle
+        _state.CycleTool(); // Rectangle → Inactive
 
         Assert.Equal(3, firedCount);
     }
@@ -214,15 +201,15 @@ public class AppStateTests
         var transitions = new List<(ToolMode old, ToolMode @new)>();
         _state.ModeChanged += (old, @new) => transitions.Add((old, @new));
 
-        _state.CycleTool(); // Inactive → Laser
-        _state.CycleTool(); // Laser → Highlighter
+        _state.CycleTool(); // Inactive → Highlighter
         _state.CycleTool(); // Highlighter → Rectangle
         _state.CycleTool(); // Rectangle → Inactive
+        _state.CycleTool(); // Inactive → Highlighter
 
         Assert.Equal(4, transitions.Count);
-        Assert.Equal((ToolMode.Inactive, ToolMode.Laser), transitions[0]);
-        Assert.Equal((ToolMode.Laser, ToolMode.Highlighter), transitions[1]);
-        Assert.Equal((ToolMode.Highlighter, ToolMode.Rectangle), transitions[2]);
-        Assert.Equal((ToolMode.Rectangle, ToolMode.Inactive), transitions[3]);
+        Assert.Equal((ToolMode.Inactive, ToolMode.Highlighter), transitions[0]);
+        Assert.Equal((ToolMode.Highlighter, ToolMode.Rectangle), transitions[1]);
+        Assert.Equal((ToolMode.Rectangle, ToolMode.Inactive), transitions[2]);
+        Assert.Equal((ToolMode.Inactive, ToolMode.Highlighter), transitions[3]);
     }
 }

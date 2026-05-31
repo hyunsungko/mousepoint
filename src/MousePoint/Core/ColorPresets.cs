@@ -62,4 +62,22 @@ public static class ColorPresets
     {
         return HighlighterPresets[colorIndex % HighlighterPresets.Length].Opacity;
     }
+
+    /// <summary>
+    /// 형광펜 색을 레이저 포인터 글로우용으로 밝게 변환한다.
+    /// (형광포인터 모드에서 포인터 색을 형광펜 색과 동일 계열로 맞추기 위함)
+    /// </summary>
+    public static Color GetHighlighterGlowColor(int colorIndex)
+    {
+        var c = HighlighterPresets[colorIndex % HighlighterPresets.Length].Color;
+        return Lighten(c, 0.4);
+    }
+
+    private static Color Lighten(Color c, double amount)
+    {
+        byte r = (byte)(c.R + (255 - c.R) * amount);
+        byte g = (byte)(c.G + (255 - c.G) * amount);
+        byte b = (byte)(c.B + (255 - c.B) * amount);
+        return Color.FromRgb(r, g, b);
+    }
 }

@@ -37,10 +37,10 @@ public class ToolManagerTests
     // --- 도구 전환 위임 ---
 
     [Fact]
-    public void ToggleActivation_비활성에서_레이저로()
+    public void ToggleActivation_비활성에서_형광포인터로()
     {
         _manager.ToggleActivation();
-        Assert.Equal(ToolMode.Laser, _manager.CurrentMode);
+        Assert.Equal(ToolMode.Highlighter, _manager.CurrentMode);
     }
 
     [Fact]
@@ -52,12 +52,9 @@ public class ToolManagerTests
     }
 
     [Fact]
-    public void CycleTool_비활성에서_레이저_형광펜_네모박스_비활성()
+    public void CycleTool_비활성에서_형광포인터_네모박스_비활성()
     {
-        _manager.CycleTool(); // → Laser
-        Assert.Equal(ToolMode.Laser, _manager.CurrentMode);
-
-        _manager.CycleTool(); // → Highlighter
+        _manager.CycleTool(); // → Highlighter (형광포인터)
         Assert.Equal(ToolMode.Highlighter, _manager.CurrentMode);
 
         _manager.CycleTool(); // → Rectangle
